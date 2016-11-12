@@ -1,8 +1,12 @@
 public class Edge {
   final Vertex first, second;
+  final double dist;
   Edge(Vertex first, Vertex second) {
     this.first = first;
     this.second = second;
+    this.dist = Utils.dist(first, second);
+    this.first.adjs.add(second);
+    this.second.adjs.add(first);
   }
 
   @Override

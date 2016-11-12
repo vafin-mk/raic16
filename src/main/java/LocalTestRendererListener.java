@@ -17,23 +17,21 @@ public final class LocalTestRendererListener {
   private double width;
   private double height;
 
+  private Graph navGraph = GraphFactory.buildNavigationGraph();
+
   public void beforeDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
                               double left, double top, double width, double height) {
     updateFields(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
 
-    graphics.setColor(Color.BLACK);
+    graphics.setColor(Color.BLUE);
+    navGraph.vertices.forEach(vertex -> fillCircle(vertex.x, vertex.y, game.getWizardRadius()));
+    navGraph.edges.forEach(edge -> drawLine(edge.first.x, edge.first.y, edge.second.x, edge.second.y));
 
-    for (Wizard wizard : world.getWizards()) {
-      double radius = wizard.getRadius();
-      double diameter = radius * 2.0D;
-      drawRect(wizard.getX() - radius, wizard.getY() - radius, diameter, diameter);
-    }
   }
 
   public void afterDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
                              double left, double top, double width, double height) {
     updateFields(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
-
     graphics.setColor(Color.BLACK);
   }
 

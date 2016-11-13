@@ -1,4 +1,3 @@
-import com.sun.org.apache.bcel.internal.generic.BREAKPOINT;
 import model.*;
 
 import java.util.*;
@@ -273,7 +272,7 @@ public final class MyStrategy implements Strategy {
           break;
         default:
       }
-      System.out.println(Arrays.toString(currentPath.path.toArray()));
+      log(Arrays.toString(currentPath.path.toArray()));
     }
     this.self = self;
     this.world = world;

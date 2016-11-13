@@ -13,9 +13,9 @@ public class GraphFactory {
     vertices.add(allyBaseMidEntrance);
     vertices.add(allyBaseBottomEntrance);
 
-    Vertex topAllyTower2 = new Vertex(250, 2800);
-    Vertex topAllyTower1 = new Vertex(250, 1900);
-    Vertex topAllyClashPoint = new Vertex(150, 300);
+    Vertex topAllyTower2 = new Vertex(300, 2800);
+    Vertex topAllyTower1 = new Vertex(50, 1900);
+    Vertex topAllyClashPoint = new Vertex(50, 200);
     Vertex topEnemyClashPoint = new Vertex(900, 100);
     Vertex topEnemyTower1 = new Vertex(1500, 300);
     Vertex topEnemyTower2 = new Vertex(2450, 100);
@@ -37,9 +37,9 @@ public class GraphFactory {
     vertices.add(midEnemyTower1);
     vertices.add(midEnemyTower2);
 
-    Vertex botAllyTower2 = new Vertex(1200, 3800);
-    Vertex botAllyTower1 = new Vertex(2150, 3850);
-    Vertex botAllyClashPoint = new Vertex(3750, 3900);
+    Vertex botAllyTower2 = new Vertex(1200, 3900);
+    Vertex botAllyTower1 = new Vertex(2050, 3700);
+    Vertex botAllyClashPoint = new Vertex(3800, 3900);
     Vertex botEnemyClashPoint = new Vertex(3900, 3500);
     Vertex botEnemyTower1 = new Vertex(3950, 2600);
     Vertex botEnemyTower2 = new Vertex(3750, 1600);

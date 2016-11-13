@@ -11,6 +11,10 @@ public class PathFinder {
   //for now without heuristics
   Path buildPath(Vertex leftVertex, Vertex rightVertex, Graph graph) {
     List<Vertex> vertices = new ArrayList<>(graph.vertices);
+    vertices.forEach(vertex -> {
+      vertex.g = 0;
+      vertex.parent = null;
+    });
     List<Edge> edges = new ArrayList<>(graph.edges);
 
     Vertex startVertex = Utils.closestVertex(leftVertex, vertices);

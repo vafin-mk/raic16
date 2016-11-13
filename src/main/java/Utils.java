@@ -17,14 +17,17 @@ public class Utils {
     return dist(from.getX(), from.getY(), to.x, to.y);
   }
 
-  static Vertex closestVertex(Unit unit, List<Vertex> vertices) {
+  static Vertex closestVertex(Unit unit, Collection<Vertex> vertices) {
     return closestVertex(new Vertex(unit.getX(), unit.getY()), vertices);
   }
 
-  static Vertex closestVertex(Vertex origin, List<Vertex> vertices) {
-    Vertex closest = vertices.get(0);
+  static Vertex closestVertex(Vertex origin, Collection<Vertex> vertices) {
+    Vertex closest = null;
     double dist = 1_000_000;
     for (Vertex vertex : vertices) {
+      if (closest == null) {
+        closest = vertex;
+      }
       double vertDist = dist(origin, vertex);
       if (vertDist < dist) {
         dist = vertDist;

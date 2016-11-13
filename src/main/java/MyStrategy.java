@@ -1,9 +1,6 @@
 import model.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static java.lang.StrictMath.*;
 
@@ -19,17 +16,39 @@ public final class MyStrategy implements Strategy {
 
   private Random random;
   private Path currentPath;
+  private Behaviour behaviour = Behaviour.MOVE;
+  private List<LivingUnit> enemiesAround;
 
   @Override
   public void move(Wizard self, World world, Game game, Move move) {
     updateData(self, world, game, move);
-    if (self.getLife() < self.getMaxLife() / 3) {
-      moveTo(currentPath.nextVertex(self, false));
+    checkBehaviour();
+    switch (behaviour) {
+      case MOVE:
+        if (self.getLife() < self.getMaxLife() / 3) {
+          moveTo(currentPath.nextVertex(self, false));
+        } else {
+          moveTo(currentPath.nextVertex(self));
+        }
+        return;
+      case FIGHT:
+        action();
+        return;
+      case RUNE:
+        return;
+    }
+  }
+
+  private void checkBehaviour() {
+    if(!enemiesAround.isEmpty()) {
+      behaviour = Behaviour.FIGHT;
       return;
     }
-    if (!action()) {
-      moveTo(currentPath.nextVertex(self));
-    }
+    behaviour = Behaviour.MOVE;
+  }
+
+  private void moveTo(LivingUnit unit) {
+    moveTo(new Vertex(unit.getX(), unit.getY()));
   }
 
   private void moveTo(Vertex vertex) {
@@ -47,7 +66,17 @@ public final class MyStrategy implements Strategy {
   }
 
   private boolean action() {
-    LivingUnit enemy = enemy();
+    LivingUnit closestEnemy = enemiesAround.get(0);
+    double closestEnemyDist = closestEnemy.getDistanceTo(self);
+
+    if (closestEnemyDist < 200 || !haveAllyShield()) {
+      move.setSpeed(-game.getWizardBackwardSpeed());
+      move.setStrafeSpeed(random.nextBoolean() ? game.getWizardStrafeSpeed() : -game.getWizardStrafeSpeed());
+    } else if (closestEnemyDist > game.getWizardCastRange() * 0.9) {
+      moveTo(closestEnemy);
+    }
+
+    LivingUnit enemy = bestTarget();
     if (enemy == null) {
       return false;
     }
@@ -62,11 +91,19 @@ public final class MyStrategy implements Strategy {
     return true;
   }
 
-  private LivingUnit enemy() {
-    List<LivingUnit> enemies = new ArrayList<>();
-    enemies.addAll(enemiesInRadius(world.getBuildings(), game.getWizardCastRange()));
-    enemies.addAll(enemiesInRadius(world.getWizards(), game.getWizardCastRange()));
-    enemies.addAll(enemiesInRadius(world.getMinions(), game.getWizardCastRange()));
+  private boolean haveAllyShield() {
+    LivingUnit closestEnemy = enemiesAround.get(0);
+    double distToEnemy = closestEnemy.getDistanceTo(self);
+    for (LivingUnit ally : world.getMinions()) {
+      if (ally.getFaction() == self.getFaction() && ally.getDistanceTo(closestEnemy) < distToEnemy) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private LivingUnit bestTarget() {
+    List<LivingUnit> enemies = getAllEnemiesInRadius(game.getWizardCastRange(), false);
     if (enemies.isEmpty()) {
       return null;
     }
@@ -82,16 +119,24 @@ public final class MyStrategy implements Strategy {
     return bestEnemy;
   }
 
-  private List<LivingUnit> enemiesInRadius(LivingUnit[] units, double range) {
+  private List<LivingUnit> enemiesInRadius(LivingUnit[] units, double range, boolean neutralsIncluded) {
     List<LivingUnit> enemies = new ArrayList<>();
     for (LivingUnit unit : units) {
       if (unit.getDistanceTo(self) < range
           && unit.getFaction() != self.getFaction()
           && unit.getFaction() != Faction.OTHER
-          && unit.getFaction() != Faction.NEUTRAL) {
+          && (neutralsIncluded || unit.getFaction() != Faction.NEUTRAL)) {
         enemies.add(unit);
       }
     }
+    return enemies;
+  }
+
+  private List<LivingUnit> getAllEnemiesInRadius(double range, boolean neutralsInluded) {
+    List<LivingUnit> enemies = new ArrayList<>();
+    enemies.addAll(enemiesInRadius(world.getBuildings(), range, neutralsInluded));
+    enemies.addAll(enemiesInRadius(world.getWizards(), range, neutralsInluded));
+    enemies.addAll(enemiesInRadius(world.getMinions(), range, neutralsInluded));
     return enemies;
   }
 
@@ -112,5 +157,7 @@ public final class MyStrategy implements Strategy {
     this.world = world;
     this.game = game;
     this.move = move;
+    this.enemiesAround = getAllEnemiesInRadius(game.getWizardCastRange() * 2, false);
+    enemiesAround.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
   }
 }

@@ -6,9 +6,6 @@ import static java.lang.StrictMath.*;
 
 public final class MyStrategy implements Strategy {
 
-  private static final Vertex TOP_RUNE = new Vertex(1200, 1200);
-  private static final Vertex BOT_RUNE = new Vertex(2800, 2800);
-
   private final Path TOP_LANE_PATH;
   private final Path MID_LANE_PATH;
   private final Path BOTTOM_LANE_PATH;
@@ -46,13 +43,13 @@ public final class MyStrategy implements Strategy {
         action();
         return;
       case RUNE:
-        if (!topRuneVisited && self.getDistanceTo(TOP_RUNE.x, TOP_RUNE.y) < game.getBonusRadius()) {
+        if (!topRuneVisited && self.getDistanceTo(Vertex.TOP_RUNE.x, Vertex.TOP_RUNE.y) < game.getBonusRadius()) {
           topRuneVisited = true;
-          runePath.path.remove(TOP_RUNE);
+          runePath.path.remove(Vertex.TOP_RUNE);
           log("TOP RUNE ACQUIRED RUNE PATH:", Arrays.toString(runePath.path.toArray()));
-        } else if (!botRuneVisited && self.getDistanceTo(BOT_RUNE.x, BOT_RUNE.y) < game.getBonusRadius()) {
+        } else if (!botRuneVisited && self.getDistanceTo(Vertex.BOT_RUNE.x, Vertex.BOT_RUNE.y) < game.getBonusRadius()) {
           botRuneVisited = true;
-          runePath.path.remove(BOT_RUNE);
+          runePath.path.remove(Vertex.BOT_RUNE);
           log("BOT RUNE ACQUIRED RUNE PATH:", Arrays.toString(runePath.path.toArray()));
         }
         moveTo(runePath.nextVertex(self));
@@ -73,10 +70,10 @@ public final class MyStrategy implements Strategy {
         }
         return;
       }
-      Path toTop = pathFinder.buildPath(self, TOP_RUNE, navGraph);
-      Path toBot = pathFinder.buildPath(self, BOT_RUNE, navGraph);
-      double distTop = toTop.distTo(self, TOP_RUNE);
-      double distBot = toBot.distTo(self, BOT_RUNE);
+      Path toTop = pathFinder.buildPath(self, Vertex.TOP_RUNE, navGraph);
+      Path toBot = pathFinder.buildPath(self, Vertex.BOT_RUNE, navGraph);
+      double distTop = toTop.distTo(self, Vertex.TOP_RUNE);
+      double distBot = toBot.distTo(self, Vertex.BOT_RUNE);
       log("DISTANCE TO TOP ", distTop);
       log("DISTANCE TO BOT ", distBot);
       boolean topCloser = distTop > distBot;
@@ -86,15 +83,15 @@ public final class MyStrategy implements Strategy {
         behaviour = Behaviour.MOVE;
         return;
       }
-      log("BEHAVIOUD CHANGE FROM %s TO RUNE", behaviour);
+      log("BEHAVIOUR CHANGE FROM %s TO RUNE", behaviour);
       behaviour = Behaviour.RUNE;
       if (topRuneVisited) {
         runePath = toBot;
       } else if (botRuneVisited) {
         runePath = toTop;
       } else { //going for both
-        runePath = pathFinder.buildPath(self, topCloser ? TOP_RUNE : BOT_RUNE, navGraph);
-        Path other = pathFinder.buildPath(topCloser ? TOP_RUNE : BOT_RUNE, topCloser ? BOT_RUNE : TOP_RUNE, navGraph);
+        runePath = pathFinder.buildPath(self, topCloser ? Vertex.TOP_RUNE : Vertex.BOT_RUNE, navGraph);
+        Path other = pathFinder.buildPath(topCloser ? Vertex.TOP_RUNE : Vertex.BOT_RUNE, topCloser ? Vertex.BOT_RUNE : Vertex.TOP_RUNE, navGraph);
         other.path.remove(0);
         runePath.path.addAll(other.path);
       }
@@ -104,13 +101,13 @@ public final class MyStrategy implements Strategy {
     }
     if(!enemiesAround.isEmpty()) {
       if (behaviour != Behaviour.FIGHT) {
-        log("BEHAVIOUD CHANGE FROM %s TO FIGHT", behaviour);
+        log("BEHAVIOUR CHANGE FROM %s TO FIGHT", behaviour);
       }
       behaviour = Behaviour.FIGHT;
       return;
     }
     if (behaviour != Behaviour.MOVE) {
-      log("BEHAVIOUD CHANGE FROM %s TO MOVE", behaviour);
+      log("BEHAVIOUR CHANGE FROM %s TO MOVE", behaviour);
     }
     behaviour = Behaviour.MOVE;
   }

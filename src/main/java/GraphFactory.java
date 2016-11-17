@@ -1,5 +1,7 @@
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class GraphFactory {
   static Graph buildNavigationGraph() {
@@ -99,5 +101,84 @@ public class GraphFactory {
     edges.add(new Edge(botRune, botAllyClashPoint));
 
     return new Graph(vertices, edges);
+  }
+
+  static Graph buildNavigationGraphV2(List<Vertex> forbidden) {
+    //contants
+    final int SIZE = 4000;
+    final int STEP = 175;
+    final int LEN = SIZE/STEP;
+    final int FORBIDDEN_LEN = 150;
+    final int EDGE_MAX_LEN = 250;
+    final int MIN_X = 75;
+    final int MIN_Y = 75;
+    final int MAX_X = SIZE - MIN_X;
+    final int MAX_Y = SIZE - MIN_Y;
+
+    Set<Vertex> vertices = new HashSet<>();
+
+    for (int x = 0; x <= LEN; x++) {
+      for (int y = 0; y <= LEN; y++) {
+        Vertex vertex = new Vertex(x * STEP, y * STEP);
+        boolean add = true;
+        if (Forest.LEFT.contains(vertex)
+            || Forest.TOP.contains(vertex)
+            || Forest.RIGHT.contains(vertex)
+            || Forest.BOT.contains(vertex)) {
+          add = false;
+        }
+        if (!add) continue;
+        for (Vertex vertex1 : forbidden) {
+          if (vertex.dist(vertex1) < FORBIDDEN_LEN) {
+            add = false;
+            break;
+          }
+        }
+        if (!add) continue;
+
+        if (vertex.x < MIN_X || vertex.x > MAX_X || vertex.y < MIN_Y || vertex.y > MAX_Y) {
+          add = false;
+        }
+        if (!add) continue;
+
+        if (vertex.x > 3200 && vertex.y < 600) {
+          add = false;
+        }
+        if (!add) continue;
+
+        vertices.add(vertex);
+      }
+    }
+
+    List<Vertex> verts = new ArrayList<>(vertices);
+
+    Set<Edge> edges = new HashSet<>();
+    for (int i = 0; i < verts.size(); i++) {
+      for (int j = i + 1; j < verts.size(); j++) {
+        if (verts.get(i).dist(verts.get(j)) < EDGE_MAX_LEN) {
+          edges.add(new Edge(verts.get(i), verts.get(j)));
+        }
+      }
+    }
+    return new Graph(edges);
+  }
+
+  static Graph buildNavigationGraphV2() {
+    List<Vertex> buildings = new ArrayList<>();
+    buildings.add(Vertex.ALLY_BASE.copy());
+    buildings.add(Vertex.ALLY_TOP_TOWER1.copy());
+    buildings.add(Vertex.ALLY_TOP_TOWER2.copy());
+    buildings.add(Vertex.ALLY_MID_TOWER1.copy());
+    buildings.add(Vertex.ALLY_MID_TOWER2.copy());
+    buildings.add(Vertex.ALLY_BOT_TOWER1.copy());
+    buildings.add(Vertex.ALLY_BOT_TOWER2.copy());
+    buildings.add(Vertex.ENEMY_BASE.copy());
+    buildings.add(Vertex.ENEMY_TOP_TOWER1.copy());
+    buildings.add(Vertex.ENEMY_TOP_TOWER2.copy());
+    buildings.add(Vertex.ENEMY_MID_TOWER1.copy());
+    buildings.add(Vertex.ENEMY_MID_TOWER2.copy());
+    buildings.add(Vertex.ENEMY_BOT_TOWER1.copy());
+    buildings.add(Vertex.ENEMY_BOT_TOWER2.copy());
+    return buildNavigationGraphV2(buildings);
   }
 }

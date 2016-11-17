@@ -237,7 +237,9 @@ public final class MyStrategy implements Strategy {
 
   //INITIAL STAGE
   MyStrategy() {
-    navGraph = GraphFactory.buildNavigationGraph();
+    long start = System.nanoTime();
+    navGraph = GraphFactory.buildNavigationGraphV2();
+    log("building nav graph in %s ms", (System.nanoTime() - start) / 1_000_000);
     pathFinder = new PathFinder();
 
     TOP_LANE_PATH = pathFinder.buildPath(new Vertex(50, 3950), new Vertex(150, 300), navGraph);
@@ -280,6 +282,6 @@ public final class MyStrategy implements Strategy {
   }
 
   private void log(String format, Object...args) {
-//    System.out.println(String.format(format, args) + " --- " + world.getTickIndex());
+    System.out.println(String.format(format, args) + " --- " + (world == null ? "init" : world.getTickIndex()));
   }
 }

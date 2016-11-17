@@ -24,6 +24,11 @@ public final class RemoteProcessClient implements Closeable {
   private Tree[] previousTrees;
 
   public RemoteProcessClient(String host, int port) throws IOException {
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     socket = new Socket(host, port);
     socket.setSendBufferSize(BUFFER_SIZE_BYTES);
     socket.setReceiveBufferSize(BUFFER_SIZE_BYTES);

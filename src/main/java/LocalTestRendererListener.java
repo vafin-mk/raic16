@@ -17,7 +17,7 @@ public final class LocalTestRendererListener {
   private double width;
   private double height;
 
-  private Graph navGraph = GraphFactory.buildNavigationGraph();
+  private Graph navGraph = GraphFactory.buildNavigationGraphV2();
 
   public void beforeDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
                               double left, double top, double width, double height) {

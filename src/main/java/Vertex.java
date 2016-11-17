@@ -1,5 +1,9 @@
+import model.Unit;
+
 import java.util.HashSet;
 import java.util.Set;
+
+import static java.lang.StrictMath.hypot;
 
 public class Vertex implements Comparable<Vertex> {
   //tower index from center
@@ -40,6 +44,17 @@ public class Vertex implements Comparable<Vertex> {
     this.y = y;
   }
 
+  double dist(double x, double y) {
+    return hypot(x - this.x, y - this.y);
+  }
+
+  double dist(Unit unit) {
+    return dist(unit.getX(), unit.getY());
+  }
+  double dist(Vertex vertex) {
+    return dist(vertex.x, vertex.y);
+  }
+
   private double getF() {
     return g + h;
   }
@@ -72,5 +87,9 @@ public class Vertex implements Comparable<Vertex> {
   @Override
   public String toString() {
     return String.format("%s/%s", x, y);
+  }
+
+  Vertex copy() {
+    return new Vertex(x, y);
   }
 }

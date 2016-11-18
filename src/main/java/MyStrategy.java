@@ -1,9 +1,10 @@
 import model.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.lang.StrictMath.*;
-
+//todo lane change, move turn and fight turn clash(missing shots there too maybe)
 public final class MyStrategy implements Strategy {
 
   private final Path TOP_LANE_PATH;
@@ -18,96 +19,126 @@ public final class MyStrategy implements Strategy {
   private Game game;
   private Move move;
 
+  private int ticksToRune;
+
   private Random random;
   private Path currentPath;
   private Path runePath;
   private Behaviour behaviour = Behaviour.MOVE;
   private List<LivingUnit> enemiesAround;
+  private List<Minion> neutrals;
+  private Lane currentLane = Lane.MID;
 
-  private boolean topRuneVisited;
-  private boolean botRuneVisited;
+  private boolean runeVisited;
+
+  private boolean enemyMidTower1Destroyed = false;
+  private boolean enemyMidTower2Destroyed = false;
+  private boolean enemyTopTower1Destroyed = false;
+  private boolean enemyTopTower2Destroyed = false;
+  private boolean enemyBotTower1Destroyed = false;
+  private boolean enemyBotTower2Destroyed = false;
 
   @Override
   public void move(Wizard self, World world, Game game, Move move) {
+    long start = System.nanoTime();
     updateData(self, world, game, move);
     checkBehaviour();
-    switch (behaviour) {
-      case MOVE:
-        if (self.getLife() < self.getMaxLife() / 3) {
-          moveTo(currentPath.nextVertex(self, false));
-        } else {
-          moveTo(currentPath.nextVertex(self));
-        }
-        return;
-      case FIGHT:
-        action();
-        return;
-      case RUNE:
-        if (!topRuneVisited && self.getDistanceTo(Vertex.TOP_RUNE.x, Vertex.TOP_RUNE.y) < game.getBonusRadius()) {
-          topRuneVisited = true;
-          runePath.path.remove(Vertex.TOP_RUNE);
-          log("TOP RUNE ACQUIRED RUNE PATH:", Arrays.toString(runePath.path.toArray()));
-        } else if (!botRuneVisited && self.getDistanceTo(Vertex.BOT_RUNE.x, Vertex.BOT_RUNE.y) < game.getBonusRadius()) {
-          botRuneVisited = true;
-          runePath.path.remove(Vertex.BOT_RUNE);
-          log("BOT RUNE ACQUIRED RUNE PATH:", Arrays.toString(runePath.path.toArray()));
-        }
-        moveTo(runePath.nextVertex(self));
-        return;
+    fightAction();
+    moveAction();
+    long tickHandleTime = (System.nanoTime() - start) / 1_000_000;
+    if (tickHandleTime > 10) {
+      log("Tick handled to long: %s ms!!", tickHandleTime);
     }
   }
 
-  private void checkBehaviour() {
-    if (world.getTickIndex() % game.getBonusAppearanceIntervalTicks() == 0) {
-      topRuneVisited = false;
-      botRuneVisited = false;
+  private void moveAction() {
+    if (behaviour == Behaviour.RUNE) {
+      if ((Vertex.TOP_RUNE.dist(self) < game.getBonusRadius() || Vertex.BOT_RUNE.dist(self) < game.getBonusRadius()) && ticksToRune > 200) {
+        runeVisited = true;
+      }
+      Vertex vertex = runePath.nextVertex(self);
+      if (world.getTickIndex() % 100 == 0) log("RUNE -> %s", vertex);
+      moveTo(vertex/*runePath.nextVertex(self)*/);
+      return;
     }
-    if ((!topRuneVisited || !botRuneVisited)) {
-      if (behaviour == Behaviour.RUNE) {
-        if (world.getTickIndex() % game.getBonusAppearanceIntervalTicks() > game.getBonusAppearanceIntervalTicks() * 0.5) {
-          topRuneVisited = true;
-          botRuneVisited = true;
-        }
+
+    if (behaviour == Behaviour.MOVE) {
+      if (self.getLife() > self.getMaxLife() / 2) {
+        moveTo(currentPath.nextVertex(self));
+      } else if (enemiesAround.isEmpty() || enemiesAround.get(0).getDistanceTo(self) > self.getCastRange() * 3 / 4) {
+        //nothing, stay
+      } else {
+        moveTo(currentPath.nextVertex(self, false));
+      }
+      return;
+    }
+
+    //fight
+    LivingUnit closestEnemy = enemiesAround.get(0);
+    double closestEnemyDist = closestEnemy.getDistanceTo(self);
+    if (closestEnemyDist < 200 || !haveAllyShield()) {
+      moveTo(currentPath.nextVertex(self, false), false);
+    } else if (closestEnemyDist > game.getWizardCastRange() * 0.9) {
+      moveTo(currentPath.nextVertex(self));
+    }
+  }
+
+  private void fightAction() {
+    if (self.getRemainingActionCooldownTicks() > 0 || enemiesAround.isEmpty()) {
+      return;
+    }
+    LivingUnit closestEnemy = enemiesAround.get(0);
+    double closestEnemyDist = closestEnemy.getDistanceTo(self);
+
+    if (closestEnemyDist < game.getStaffRange()
+        && actionAvailable(ActionType.STAFF)) {
+      double angle = self.getAngleTo(closestEnemy);
+      if (abs(angle) < game.getStaffSector() / 2.0D) {
+        move.setAction(ActionType.STAFF);
         return;
       }
+    }
+
+    LivingUnit enemy = bestTarget();
+    if (enemy == null) {
+      return;
+    }
+    double angle = self.getAngleTo(enemy);
+    move.setTurn(angle);
+
+    if (abs(angle) < game.getStaffRange() / 2.0D && actionAvailable(ActionType.MAGIC_MISSILE)) {
+      move.setAction(ActionType.MAGIC_MISSILE);
+      move.setCastAngle(angle);
+      move.setMinCastDistance(self.getDistanceTo(enemy) - enemy.getRadius() + game.getMagicMissileRadius());
+    }
+
+    //todo other actions round 1
+  }
+
+  private void checkBehaviour() {
+    if (self.getLife() > self.getMaxLife() / 2 && behaviour == Behaviour.RUNE && !runeVisited) {
+      return;
+    }
+    if (ticksToRune == 500) {
       Path toTop = pathFinder.buildPath(self, Vertex.TOP_RUNE, navGraph);
       Path toBot = pathFinder.buildPath(self, Vertex.BOT_RUNE, navGraph);
       double distTop = toTop.distTo(self, Vertex.TOP_RUNE);
       double distBot = toBot.distTo(self, Vertex.BOT_RUNE);
+      if (distTop > 2000 && distBot > 2000) {
+        return;
+      }
       log("DISTANCE TO TOP ", distTop);
       log("DISTANCE TO BOT ", distBot);
       boolean topCloser = distTop > distBot;
-      topRuneVisited = distTop > 3000;
-      botRuneVisited = distBot > 3000;
-      if (topRuneVisited && botRuneVisited) {
-        behaviour = Behaviour.MOVE;
-        return;
-      }
-      log("BEHAVIOUR CHANGE FROM %s TO RUNE", behaviour);
+      runePath = topCloser ? toTop : toBot;
+      runeVisited = false;
       behaviour = Behaviour.RUNE;
-      if (topRuneVisited) {
-        runePath = toBot;
-      } else if (botRuneVisited) {
-        runePath = toTop;
-      } else { //going for both
-        runePath = pathFinder.buildPath(self, topCloser ? Vertex.TOP_RUNE : Vertex.BOT_RUNE, navGraph);
-        Path other = pathFinder.buildPath(topCloser ? Vertex.TOP_RUNE : Vertex.BOT_RUNE, topCloser ? Vertex.BOT_RUNE : Vertex.TOP_RUNE, navGraph);
-        other.path.remove(0);
-        runePath.path.addAll(other.path);
-      }
-      runePath.clearRepeats();
       log("RUNE PATH: %s", Arrays.toString(runePath.path.toArray()));
       return;
     }
     if(!enemiesAround.isEmpty()) {
-      if (behaviour != Behaviour.FIGHT) {
-        log("BEHAVIOUR CHANGE FROM %s TO FIGHT", behaviour);
-      }
       behaviour = Behaviour.FIGHT;
       return;
-    }
-    if (behaviour != Behaviour.MOVE) {
-      log("BEHAVIOUR CHANGE FROM %s TO MOVE", behaviour);
     }
     behaviour = Behaviour.MOVE;
   }
@@ -148,39 +179,6 @@ public final class MyStrategy implements Strategy {
     }
   }
 
-  private boolean action() {
-    LivingUnit closestEnemy = enemiesAround.get(0);
-    double closestEnemyDist = closestEnemy.getDistanceTo(self);
-
-    if (closestEnemyDist < 200 || !haveAllyShield()) {
-      moveTo(currentPath.nextVertex(self, false), false);
-    } else if (closestEnemyDist > game.getWizardCastRange() * 0.9) {
-      moveTo(closestEnemy);
-    }
-
-    if (closestEnemyDist < game.getStaffRange()
-        && actionAvailable(ActionType.STAFF)) {
-      double angle = self.getAngleTo(closestEnemy);
-      if (abs(angle) < game.getStaffRange() / 2.0D) {
-        move.setAction(ActionType.STAFF);
-        return true;
-      }
-    }
-    LivingUnit enemy = bestTarget();
-    if (enemy == null) {
-      return false;
-    }
-    double angle = self.getAngleTo(enemy);
-    move.setTurn(angle);
-
-    if (abs(angle) < game.getStaffRange() / 2.0D && actionAvailable(ActionType.MAGIC_MISSILE)) {
-      move.setAction(ActionType.MAGIC_MISSILE);
-      move.setCastAngle(angle);
-      move.setMinCastDistance(self.getDistanceTo(enemy) - enemy.getRadius() + game.getMagicMissileRadius());
-    }
-    return true;
-  }
-
   private boolean actionAvailable(ActionType action) {
     return self.getRemainingActionCooldownTicks() == 0
         && self.getRemainingCooldownTicksByAction()[action.ordinal()] == 0;
@@ -189,16 +187,41 @@ public final class MyStrategy implements Strategy {
   private boolean haveAllyShield() {
     LivingUnit closestEnemy = enemiesAround.get(0);
     double distToEnemy = closestEnemy.getDistanceTo(self);
-    for (LivingUnit ally : world.getMinions()) {
-      if (ally.getFaction() == self.getFaction() && ally.getDistanceTo(closestEnemy) < distToEnemy) {
-        return true;
+    int allyPower = 0, enemyPower = 0;
+
+    for (LivingUnit unit : world.getMinions()) {
+      if (unit.getFaction() == self.getFaction() && unit.getDistanceTo(closestEnemy) < distToEnemy) {
+        allyPower += 100;
+      } else if (unit.getFaction() != self.getFaction()) {
+        double dist = unit.getDistanceTo(self);
+        if (dist < self.getCastRange()) {
+          enemyPower += 50;
+        } else if (dist < self.getCastRange() / 3) {
+          enemyPower += 150;
+        }
       }
     }
-    return false;
+
+    for (LivingUnit unit : world.getWizards()) {
+      if (unit.getFaction() == self.getFaction() && unit.getDistanceTo(closestEnemy) < distToEnemy) {
+        allyPower += 50;
+      } else if (unit.getFaction() != self.getFaction()) {
+        double dist = unit.getDistanceTo(self);
+        if (dist < self.getCastRange()) {
+          enemyPower += 100;
+        } else if (dist < self.getCastRange() / 3) {
+          enemyPower += 200;
+        }
+      }
+    }
+    return allyPower > enemyPower;
   }
 
   private LivingUnit bestTarget() {
     List<LivingUnit> enemies = getAllEnemiesInRadius(game.getWizardCastRange(), false);
+    if (enemies.isEmpty()) {
+      enemies = getAllEnemiesInRadius(game.getWizardCastRange(), true);
+    }
     if (enemies.isEmpty()) {
       return null;
     }
@@ -206,6 +229,9 @@ public final class MyStrategy implements Strategy {
     int bestEnemyValue = 0;
     for (LivingUnit enemy : enemies) {
       int value = enemy.getMaxLife() / enemy.getLife();
+      if (enemy instanceof Wizard) {
+        value *= 3;
+      }
       if (value > bestEnemyValue) {
         bestEnemyValue = value;
         bestEnemy = enemy;
@@ -218,8 +244,7 @@ public final class MyStrategy implements Strategy {
     List<LivingUnit> enemies = new ArrayList<>();
     for (LivingUnit unit : units) {
       if (unit.getDistanceTo(self) < range
-          && unit.getFaction() != self.getFaction()
-          && unit.getFaction() != Faction.OTHER
+          && unit.getFaction() == oppositeFaction()
           && (neutralsIncluded || unit.getFaction() != Faction.NEUTRAL)) {
         enemies.add(unit);
       }
@@ -258,16 +283,19 @@ public final class MyStrategy implements Strategy {
         case 6:
         case 7:
           currentPath = TOP_LANE_PATH;
+          currentLane = Lane.TOP;
           break;
         case 3:
         case 8:
           currentPath = MID_LANE_PATH;
+          currentLane = Lane.MID;
           break;
         case 4:
         case 5:
         case 9:
         case 10:
           currentPath = BOTTOM_LANE_PATH;
+          currentLane = Lane.BOT;
           break;
         default:
       }
@@ -277,11 +305,105 @@ public final class MyStrategy implements Strategy {
     this.world = world;
     this.game = game;
     this.move = move;
-    this.enemiesAround = getAllEnemiesInRadius(game.getWizardCastRange() * 2, false);
+
+    if (world.getTickIndex() > 0) {
+      this.ticksToRune = game.getBonusAppearanceIntervalTicks() - game.getBonusAppearanceIntervalTicks() % world.getTickIndex();
+    }
+
+    this.enemiesAround = getAllEnemiesInRadius(game.getWizardCastRange() * 1.2, false);
     enemiesAround.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
+
+    if (world.getTickIndex() % 500 == 0) {
+      navGraph = GraphFactory.buildNavigationGraphV2(world);
+    }
+
+    checkTowers();
+    if (navGraph.closest(self).lane == Lane.BASE && world.getTickIndex() > 300) {
+      changeLine();
+    }
+  }
+
+  private void checkTowers() {
+    boolean destroyed = false;
+    for (Minion minion : world.getMinions()) {
+      if (minion.getFaction() != self.getFaction()) {
+        continue;
+      }
+      //top
+      if (minion.getY() < 400) {
+        if (minion.getX() >= Vertex.ENEMY_TOP_TOWER1.x + 20 && !enemyTopTower1Destroyed) {
+          enemyTopTower1Destroyed = true;
+          destroyed = true;
+        }
+        if (minion.getX() >= Vertex.ENEMY_TOP_TOWER2.x + 20 && !enemyTopTower2Destroyed) {
+          enemyTopTower2Destroyed = true;
+          destroyed = true;
+        }
+      }
+      //bot
+      if (minion.getX() > 3600) {
+        if (minion.getY() < Vertex.ENEMY_BOT_TOWER1.x - 20 && !enemyBotTower1Destroyed) {
+          enemyBotTower1Destroyed = true;
+          destroyed = true;
+        }
+        if (minion.getY() < Vertex.ENEMY_BOT_TOWER2.x - 20 && !enemyBotTower2Destroyed) {
+          enemyBotTower2Destroyed = true;
+          destroyed = true;
+        }
+      }
+
+      //mid
+      if ((minion.getX() >= 400 && minion.getX() <= 2000 && minion.getY() >= 2000 && minion.getY() <= 3600)
+          || (minion.getX() >= 2000 && minion.getX() <= 3600 && minion.getY() >= 400 && minion.getY() <= 2000)) {
+        if (minion.getY() < Vertex.ENEMY_MID_TOWER1.y - 20 && !enemyMidTower1Destroyed) {
+          enemyMidTower1Destroyed = true;
+          destroyed = true;
+        }
+        if (minion.getY() < Vertex.ENEMY_MID_TOWER2.y - 20 && !enemyMidTower2Destroyed) {
+          enemyMidTower2Destroyed = true;
+          destroyed = true;
+        }
+      }
+    }
+    if (destroyed) {
+      log("ENEMY TOWER DESTROYED (%s|%s|%s|%s|%s|%s)", enemyBotTower1Destroyed, enemyBotTower2Destroyed,
+          enemyMidTower1Destroyed, enemyMidTower2Destroyed, enemyTopTower1Destroyed, enemyTopTower2Destroyed);
+    }
+  }
+
+  private void changeLine() {
+    //2 towers
+    if (!enemyTopTower1Destroyed && !enemyTopTower2Destroyed) {
+      currentPath = TOP_LANE_PATH;
+      currentLane = Lane.TOP;
+    } else if (!enemyMidTower1Destroyed && !enemyMidTower2Destroyed) {
+      currentLane = Lane.MID;
+      currentPath = MID_LANE_PATH;
+    } else if (!enemyBotTower1Destroyed && !enemyBotTower2Destroyed) {
+      currentLane = Lane.BOT;
+      currentPath = BOTTOM_LANE_PATH;
+    } else if (!enemyTopTower1Destroyed || !enemyTopTower2Destroyed) {//1 tower
+      currentLane = Lane.TOP;
+      currentPath = TOP_LANE_PATH;
+    } else if (!enemyMidTower1Destroyed || !enemyMidTower2Destroyed) {
+      currentLane = Lane.MID;
+      currentPath = MID_LANE_PATH;
+    } else if (!enemyBotTower1Destroyed || !enemyBotTower2Destroyed) {
+      currentLane = Lane.BOT;
+      currentPath = BOTTOM_LANE_PATH;
+    } else {
+      currentLane = Lane.MID;
+      currentPath = MID_LANE_PATH;
+    }
+    log("CHANGE LANE TO %s", currentLane.name());
+    //TODO push/def!
+  }
+
+  private Faction oppositeFaction() {
+    return self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
   }
 
   private void log(String format, Object...args) {
-    System.out.println(String.format(format, args) + " --- " + (world == null ? "init" : world.getTickIndex()));
+//    System.out.println(String.format(format, args) + " --- " + (world == null ? "init" : world.getTickIndex()));
   }
 }

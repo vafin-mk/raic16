@@ -1,7 +1,6 @@
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import model.World;
+
+import java.util.*;
 
 public class GraphFactory {
   static Graph buildNavigationGraph() {
@@ -106,51 +105,84 @@ public class GraphFactory {
   static Graph buildNavigationGraphV2(List<Vertex> forbidden) {
     //contants
     final int SIZE = 4000;
-    final int STEP = 175;
+    final int STEP = 300;
     final int LEN = SIZE/STEP;
     final int FORBIDDEN_LEN = 150;
-    final int EDGE_MAX_LEN = 250;
-    final int MIN_X = 75;
-    final int MIN_Y = 75;
+    final int EDGE_MAX_LEN = 375;
+    final int MIN_X = 50;
+    final int MIN_Y = 50;
     final int MAX_X = SIZE - MIN_X;
     final int MAX_Y = SIZE - MIN_Y;
 
     Set<Vertex> vertices = new HashSet<>();
 
-    for (int x = 0; x <= LEN; x++) {
-      for (int y = 0; y <= LEN; y++) {
-        Vertex vertex = new Vertex(x * STEP, y * STEP);
-        boolean add = true;
-        if (Forest.LEFT.contains(vertex)
-            || Forest.TOP.contains(vertex)
-            || Forest.RIGHT.contains(vertex)
-            || Forest.BOT.contains(vertex)) {
-          add = false;
-        }
-        if (!add) continue;
-        for (Vertex vertex1 : forbidden) {
-          if (vertex.dist(vertex1) < FORBIDDEN_LEN) {
-            add = false;
-            break;
-          }
-        }
-        if (!add) continue;
+    //ally top||enemy bot
+    for (int y = 75; y < SIZE; y += STEP) {
+      vertices.add(new Vertex(75, y));
+      vertices.add(new Vertex(325, y + STEP/2));
 
-        if (vertex.x < MIN_X || vertex.x > MAX_X || vertex.y < MIN_Y || vertex.y > MAX_Y) {
-          add = false;
-        }
-        if (!add) continue;
+      vertices.add(new Vertex(3675, y));
+      vertices.add(new Vertex(3925, y + STEP/2));
+    }
+    //enemy top || ally bot
+    for (int x = 75; x < SIZE; x += STEP) {
+      vertices.add(new Vertex(x, 75));
+      vertices.add(new Vertex(x + STEP/2, 325));
 
-        if (vertex.x > 3200 && vertex.y < 600) {
-          add = false;
-        }
-        if (!add) continue;
+      vertices.add(new Vertex(x, 3675));
+      vertices.add(new Vertex(x + STEP/2, 3925));
+    }
 
-        vertices.add(vertex);
+    //mid
+//    for (int x = 600; x < SIZE - 400; x += STEP) {
+//      for (int y = SIZE - 600; y > 400; y-= STEP) {
+//        vertices.add(new Vertex(x, y));
+//      }
+//    }
+    for (int x = 600, y = SIZE - 600; x < SIZE - 400 || y > 400; x += STEP / 2, y -= STEP / 2) {
+      vertices.add(new Vertex(x - 125, y));
+      vertices.add(new Vertex(x + 125, y));
+    }
+    for (int x = 600, y = 600; x < SIZE - 400 || y < SIZE - 400; x += STEP / 2, y += STEP / 2) {
+      vertices.add(new Vertex(x - 125, y));
+      vertices.add(new Vertex(x + 125, y));
+    }
+
+    Iterator<Vertex> iterator = vertices.iterator();
+    while (iterator.hasNext()) {
+      Vertex vertex = iterator.next();
+      boolean remove = false;
+      if (Forest.LEFT.contains(vertex)
+          || Forest.TOP.contains(vertex)
+          || Forest.RIGHT.contains(vertex)
+          || Forest.BOT.contains(vertex)) {
+        remove = true;
+      }
+
+      for (Vertex vertex1 : forbidden) {
+        if (vertex.dist(vertex1) < FORBIDDEN_LEN) {
+          remove = true;
+          break;
+        }
+      }
+
+      if (vertex.x < MIN_X || vertex.x > MAX_X
+          || vertex.y < MIN_Y || vertex.y > MAX_Y
+          || (vertex.x > 2900 && vertex.y < 1100)) {
+        remove = true;
+      }
+
+      if (remove) {
+        iterator.remove();
       }
     }
 
     List<Vertex> verts = new ArrayList<>(vertices);
+    verts.add(Vertex.ALLY_BASE_TOP_ENTRANCE.copy());
+    verts.add(Vertex.ALLY_BASE_MID_ENTRANCE.copy());
+    verts.add(Vertex.ALLY_BASE_BOT_ENTRANCE.copy());
+    verts.add(Vertex.TOP_RUNE.copy());
+    verts.add(Vertex.BOT_RUNE.copy());
 
     Set<Edge> edges = new HashSet<>();
     for (int i = 0; i < verts.size(); i++) {
@@ -179,6 +211,12 @@ public class GraphFactory {
     buildings.add(Vertex.ENEMY_MID_TOWER2.copy());
     buildings.add(Vertex.ENEMY_BOT_TOWER1.copy());
     buildings.add(Vertex.ENEMY_BOT_TOWER2.copy());
+    return buildNavigationGraphV2(buildings);
+  }
+
+  static Graph buildNavigationGraphV2(World world) {
+    List<Vertex> buildings = new ArrayList<>();
+    Arrays.stream(world.getBuildings()).forEach(building -> buildings.add(new Vertex(building.getX(), building.getY())));
     return buildNavigationGraphV2(buildings);
   }
 }

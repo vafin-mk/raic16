@@ -1,10 +1,12 @@
 //triangle
 public class Forest {
 
-  final static Forest LEFT = new Forest(new Vertex(400 - 35, 800 - 35), new Vertex(1600 + 35, 2000), new Vertex(400 - 35, 3200 + 35));
-  final static Forest TOP = new Forest(new Vertex(800 - 35, 400 - 35), new Vertex(2000, 1600 + 35), new Vertex(3200 + 35, 400 - 35));
-  final static Forest RIGHT = new Forest(new Vertex(3600 + 35, 800 - 35), new Vertex(2400 - 35, 2000), new Vertex(3600 + 35, 3200 + 35));
-  final static Forest BOT = new Forest(new Vertex(800 - 35, 3600 + 35), new Vertex(2000, 2400 - 35), new Vertex(3200 + 35, 3600 + 35));
+  private static final int WIZARD_WEIGHT = 70;
+
+  final static Forest LEFT = new Forest(new Vertex(400 - WIZARD_WEIGHT, 800 - WIZARD_WEIGHT), new Vertex(1600 + WIZARD_WEIGHT, 2000), new Vertex(400 - WIZARD_WEIGHT, 3200 + WIZARD_WEIGHT));
+  final static Forest TOP = new Forest(new Vertex(800 - WIZARD_WEIGHT, 400 - WIZARD_WEIGHT), new Vertex(2000, 1600 + WIZARD_WEIGHT), new Vertex(3200 + WIZARD_WEIGHT, 400 - WIZARD_WEIGHT));
+  final static Forest RIGHT = new Forest(new Vertex(3600 + WIZARD_WEIGHT, 800 - WIZARD_WEIGHT), new Vertex(2400 - WIZARD_WEIGHT, 2000), new Vertex(3600 + WIZARD_WEIGHT, 3200 + WIZARD_WEIGHT));
+  final static Forest BOT = new Forest(new Vertex(800 - WIZARD_WEIGHT, 3600 + WIZARD_WEIGHT), new Vertex(2000, 2400 - WIZARD_WEIGHT), new Vertex(3200 + WIZARD_WEIGHT, 3600 + WIZARD_WEIGHT));
 
   final Vertex first, second, third;
 

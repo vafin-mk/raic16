@@ -34,6 +34,7 @@ public class Vertex implements Comparable<Vertex> {
 
 
   final double x, y;
+  final Lane lane;
 
   double g, h;
   Vertex parent;
@@ -42,6 +43,22 @@ public class Vertex implements Comparable<Vertex> {
   Vertex(double x, double y) {
     this.x = x;
     this.y = y;
+    this.lane = findLane();
+  }
+
+  private Lane findLane() {
+      if (x < 800 && y > 3200) {
+        return Lane.BASE;
+      } else if (x < 400 || y < 400) {
+        return Lane.TOP;
+      } else if (x > 3600 || y > 3600) {
+        return Lane.BOT;
+      } else if ((x >= 400 && x <= 2000 && y >= 2000 && y <= 3600)
+          || (x >= 2000 && x <= 3600 && y >= 400 && y <= 2000)) {
+        return Lane.MID;
+      } else {
+        return Lane.RIVER;
+      }
   }
 
   double dist(double x, double y) {

@@ -1,15 +1,18 @@
+package pathfinding;
+
 import model.Unit;
+import ai.Utils;
 
 import java.util.*;
 
 public class PathFinder {
 
-  Path buildPath(Unit unit, Vertex goal, Graph graph) {
+  public Path buildPath(Unit unit, Vertex goal, Graph graph) {
     return buildPath(new Vertex(unit.getX(), unit.getY()), goal, graph);
   }
 
   //for now without heuristics
-  Path buildPath(Vertex leftVertex, Vertex rightVertex, Graph graph) {
+  public Path buildPath(Vertex leftVertex, Vertex rightVertex, Graph graph) {
     List<Vertex> vertices = new ArrayList<>(graph.vertices);
     vertices.forEach(vertex -> {
       vertex.g = 0;

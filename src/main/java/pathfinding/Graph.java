@@ -1,11 +1,13 @@
+package pathfinding;
+
 import model.Wizard;
 
 import java.util.*;
 
 public class Graph {
 
-  Set<Vertex> vertices;
-  Set<Edge> edges;
+  public final Set<Vertex> vertices;
+  public final Set<Edge> edges;
 
   Graph(Collection<Vertex> vertices, Collection<Edge> edges) {
     this.vertices = new HashSet<>(vertices);
@@ -16,7 +18,7 @@ public class Graph {
     this(calc(edges), edges);
   }
 
-  Vertex closest(Wizard self) {
+  public Vertex closest(Wizard self) {
     return closest(new Vertex(self.getX(), self.getY()));
   }
 

@@ -1,6 +1,10 @@
+package pathfinding;
+
+import ai.Utils;
+
 public class Edge {
-  final Vertex first, second;
-  final double dist;
+  public final Vertex first, second;
+  public final double dist;
   Edge(Vertex first, Vertex second) {
     this.first = first;
     this.second = second;

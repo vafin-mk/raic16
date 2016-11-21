@@ -1,7 +1,9 @@
+package ai;
+
 import model.Unit;
+import pathfinding.Vertex;
 
 import java.util.Collection;
-import java.util.List;
 
 public class Utils {
 
@@ -9,19 +11,19 @@ public class Utils {
     return StrictMath.hypot(fromX - toX, fromY - toY);
   }
 
-  static double dist(Vertex from, Vertex to) {
+  public static double dist(Vertex from, Vertex to) {
     return dist(from.x, from.y, to.x, to.y);
   }
 
-  static double dist(Unit from, Vertex to) {
+  public static double dist(Unit from, Vertex to) {
     return dist(from.getX(), from.getY(), to.x, to.y);
   }
 
-  static Vertex closestVertex(Unit unit, Collection<Vertex> vertices) {
+  public static Vertex closestVertex(Unit unit, Collection<Vertex> vertices) {
     return closestVertex(new Vertex(unit.getX(), unit.getY()), vertices);
   }
 
-  static Vertex closestVertex(Vertex origin, Collection<Vertex> vertices) {
+  public static Vertex closestVertex(Vertex origin, Collection<Vertex> vertices) {
     Vertex closest = null;
     double dist = 1_000_000;
     for (Vertex vertex : vertices) {

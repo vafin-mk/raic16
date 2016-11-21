@@ -1,3 +1,6 @@
+package pathfinding;
+
+import ai.Lane;
 import model.Unit;
 
 import java.util.HashSet;
@@ -33,14 +36,14 @@ public class Vertex implements Comparable<Vertex> {
   public static final Vertex ENEMY_BOT_TOWER2 = new Vertex(2630, 350);
 
 
-  final double x, y;
-  final Lane lane;
+  public final double x, y;
+  public final Lane lane;
 
   double g, h;
   Vertex parent;
   Set<Vertex> adjs = new HashSet<>();
 
-  Vertex(double x, double y) {
+  public Vertex(double x, double y) {
     this.x = x;
     this.y = y;
     this.lane = findLane();
@@ -65,7 +68,7 @@ public class Vertex implements Comparable<Vertex> {
     return hypot(x - this.x, y - this.y);
   }
 
-  double dist(Unit unit) {
+  public double dist(Unit unit) {
     return dist(unit.getX(), unit.getY());
   }
   double dist(Vertex vertex) {

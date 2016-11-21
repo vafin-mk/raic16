@@ -3,3 +3,4 @@
 build/
 game.log
 result.txt
+src/main/java/MyStrategy.java

@@ -1,3 +1,5 @@
+package pathfinding;
+
 //triangle
 public class Forest {
 

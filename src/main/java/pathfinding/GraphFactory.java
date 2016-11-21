@@ -1,3 +1,5 @@
+package pathfinding;
+
 import model.World;
 
 import java.util.*;
@@ -136,7 +138,7 @@ public class GraphFactory {
     //mid
 //    for (int x = 600; x < SIZE - 400; x += STEP) {
 //      for (int y = SIZE - 600; y > 400; y-= STEP) {
-//        vertices.add(new Vertex(x, y));
+//        vertices.add(new pathfinding.Vertex(x, y));
 //      }
 //    }
     for (int x = 600, y = SIZE - 600; x < SIZE - 400 || y > 400; x += STEP / 2, y -= STEP / 2) {
@@ -195,7 +197,7 @@ public class GraphFactory {
     return new Graph(edges);
   }
 
-  static Graph buildNavigationGraphV2() {
+  public static Graph buildNavigationGraphV2() {
     List<Vertex> buildings = new ArrayList<>();
     buildings.add(Vertex.ALLY_BASE.copy());
     buildings.add(Vertex.ALLY_TOP_TOWER1.copy());
@@ -214,7 +216,7 @@ public class GraphFactory {
     return buildNavigationGraphV2(buildings);
   }
 
-  static Graph buildNavigationGraphV2(World world) {
+  public static Graph buildNavigationGraphV2(World world) {
     List<Vertex> buildings = new ArrayList<>();
     Arrays.stream(world.getBuildings()).forEach(building -> buildings.add(new Vertex(building.getX(), building.getY())));
     return buildNavigationGraphV2(buildings);

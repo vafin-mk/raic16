@@ -1,4 +1,7 @@
+package pathfinding;
+
 import model.Wizard;
+import ai.Utils;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -7,7 +10,7 @@ import java.util.Set;
 
 public class Path {
   final Vertex from, to;
-  final List<Vertex> path;
+  public final List<Vertex> path;
   Vertex lastVisited;
   Path(Vertex from, Vertex to, List<Vertex> path) {
     this.from = from;
@@ -15,11 +18,11 @@ public class Path {
     this.path = path;
   }
 
-  Vertex nextVertex(Wizard self) {
+  public Vertex nextVertex(Wizard self) {
     return nextVertex(self, true);
   }
 
-  Vertex nextVertex(Wizard self, boolean forward) {
+  public Vertex nextVertex(Wizard self, boolean forward) {
     Vertex closest = Utils.closestVertex(self, path);
     int closIndex = path.indexOf(closest);
     boolean closestVisited = closest.equals(lastVisited);
@@ -35,7 +38,7 @@ public class Path {
     return closest;
   }
 
-  double distTo(Wizard self, Vertex target) {
+  public double distTo(Wizard self, Vertex target) {
     Vertex closestStart = Utils.closestVertex(self, path);
     boolean begin = false;
     double dist = 0;

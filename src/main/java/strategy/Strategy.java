@@ -1,3 +1,5 @@
+package strategy;
+
 import model.Game;
 import model.Move;
 import model.Wizard;

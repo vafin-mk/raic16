@@ -1,11 +1,15 @@
+package ai;
+
 import model.*;
+import pathfinding.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
-import static java.lang.StrictMath.*;
+import static java.lang.StrictMath.PI;
+import static java.lang.StrictMath.abs;
+import static java.lang.StrictMath.log;
 //todo lane change, move turn and fight turn clash(missing shots there too maybe)
-public final class MyStrategy implements Strategy {
+public class AI {
 
   private final Path TOP_LANE_PATH;
   private final Path MID_LANE_PATH;
@@ -38,10 +42,12 @@ public final class MyStrategy implements Strategy {
   private boolean enemyBotTower1Destroyed = false;
   private boolean enemyBotTower2Destroyed = false;
 
-  @Override
-  public void move(Wizard self, World world, Game game, Move move) {
-    long start = System.nanoTime();
+  public void updateWorldInfo(Wizard self, World world, Game game, Move move) {
     updateData(self, world, game, move);
+  }
+
+  public void makeDecision() {
+    long start = System.nanoTime();
     checkBehaviour();
     fightAction();
     moveAction();
@@ -261,7 +267,7 @@ public final class MyStrategy implements Strategy {
   }
 
   //INITIAL STAGE
-  MyStrategy() {
+  public AI() {
     long start = System.nanoTime();
     navGraph = GraphFactory.buildNavigationGraphV2();
     log("building nav graph in %s ms", (System.nanoTime() - start) / 1_000_000);

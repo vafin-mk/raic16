@@ -5,7 +5,7 @@ import model.World;
 import java.util.*;
 
 public class GraphFactory {
-  static Graph buildNavigationGraph() {
+  public static Graph buildNavigationGraph() {
     List<Vertex> vertices = new ArrayList<>();
     Vertex allyBaseFountain = new Vertex(100, 3900);
     Vertex allyBaseTopEntrance = new Vertex(100, 3300);

@@ -12,7 +12,7 @@ public class Path {
   final Vertex from, to;
   public final List<Vertex> path;
   Vertex lastVisited;
-  Path(Vertex from, Vertex to, List<Vertex> path) {
+  public Path(Vertex from, Vertex to, List<Vertex> path) {
     this.from = from;
     this.to = to;
     this.path = path;

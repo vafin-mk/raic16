@@ -2,6 +2,7 @@ package pathfinding;
 
 import ai.Lane;
 import model.Unit;
+import model.Wizard;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -49,6 +50,10 @@ public class Vertex implements Comparable<Vertex> {
     this.lane = findLane();
   }
 
+  public Vertex(Unit unit) {
+    this(unit.getX(), unit.getY());
+  }
+
   private Lane findLane() {
       if (x < 800 && y > 3200) {
         return Lane.BASE;
@@ -77,6 +82,10 @@ public class Vertex implements Comparable<Vertex> {
 
   private double getF() {
     return g + h;
+  }
+
+  public Vertex delta(Vertex other) {
+    return new Vertex(other.x - this.x, other.y - this.y);
   }
 
   @Override

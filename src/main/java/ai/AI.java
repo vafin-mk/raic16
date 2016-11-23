@@ -5,9 +5,8 @@ import pathfinding.*;
 
 import java.util.*;
 
-import static java.lang.StrictMath.PI;
-import static java.lang.StrictMath.abs;
-import static java.lang.StrictMath.log;
+import static java.lang.StrictMath.*;
+
 //todo lane change, move turn and fight turn clash(missing shots there too maybe)
 public class AI {
 
@@ -48,13 +47,31 @@ public class AI {
 
   public void makeDecision() {
     long start = System.nanoTime();
-    checkBehaviour();
-    fightAction();
-    moveAction();
+//    checkBehaviour();
+//    fightAction();
+//    moveAction();
+    fight2();
+    move2();
+    turn2();
     long tickHandleTime = (System.nanoTime() - start) / 1_000_000;
     if (tickHandleTime > 10) {
       log("Tick handled to long: %s ms!!", tickHandleTime);
     }
+  }
+
+  private void fight2() {
+
+  }
+
+  private void turn2() {
+    move.setTurn(game.getWizardMaxTurnAngle());
+  }
+
+  private void move2() {
+    Vertex target = currentPath.nextVertex(self);
+    double angle = self.getAngleTo(target.x, target.y);
+    move.setSpeed(game.getWizardForwardSpeed() * cos(angle));
+    move.setStrafeSpeed(game.getWizardStrafeSpeed() * sin(angle));
   }
 
   private void moveAction() {
@@ -305,6 +322,7 @@ public class AI {
           break;
         default:
       }
+      currentPath = testPath();
       log(Arrays.toString(currentPath.path.toArray()));
     }
     this.self = self;
@@ -403,6 +421,17 @@ public class AI {
     }
     log("CHANGE LANE TO %s", currentLane.name());
     //TODO push/def!
+  }
+
+  private Path testPath() {
+    Vertex start = new Vertex(200, 3600);
+    Vertex end = new Vertex(400, 3800);
+    List<Vertex> path = new ArrayList<>();
+    path.add(start);
+    path.add(new Vertex(400, 3400));
+    path.add(new Vertex(600, 3600));
+    path.add(end);
+    return new Path(start, end, path);
   }
 
   private Faction oppositeFaction() {

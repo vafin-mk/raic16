@@ -7,12 +7,12 @@ import java.util.*;
 
 public class PathFinder {
 
-  public Path buildPath(Unit unit, Vertex goal, Graph graph) {
+  public List<Vertex> buildPath(Unit unit, Vertex goal, Graph graph) {
     return buildPath(new Vertex(unit.getX(), unit.getY()), goal, graph);
   }
 
   //for now without heuristics
-  public Path buildPath(Vertex leftVertex, Vertex rightVertex, Graph graph) {
+  public List<Vertex> buildPath(Vertex leftVertex, Vertex rightVertex, Graph graph) {
     List<Vertex> vertices = new ArrayList<>(graph.vertices);
     vertices.forEach(vertex -> {
       vertex.g = 0;
@@ -50,11 +50,11 @@ public class PathFinder {
       }
     }
 
-
-    throw new IllegalStateException("Fuckup!");
+    System.out.println("FAILED TO BUILD PATH!");
+    return constructPath(startVertex, goalVertex);
   }
 
-  private Path constructPath(Vertex start, Vertex goal) {
+  private List<Vertex> constructPath(Vertex start, Vertex goal) {
     List<Vertex> waypoint = new ArrayList<>();
     Vertex curr = goal;
     while (curr != null) {
@@ -62,7 +62,7 @@ public class PathFinder {
       curr = curr.parent;
     }
     Collections.reverse(waypoint);
-    return new Path(start, goal, waypoint);
+    return waypoint;
   }
 
 

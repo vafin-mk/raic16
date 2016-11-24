@@ -69,7 +69,7 @@ fun sourceList(dir: File) : List<File> {
       files.addAll(sourceList(file))
       continue
     }
-    if (!file.name.endsWith("java")) {
+    if (!file.name.endsWith("java") || file.name.equals("LocalTestRendererListener.java")) {
       continue
     }
     files.add(file)

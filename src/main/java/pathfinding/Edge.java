@@ -8,7 +8,7 @@ public class Edge {
   Edge(Vertex first, Vertex second) {
     this.first = first;
     this.second = second;
-    this.dist = Utils.dist(first, second);
+    this.dist = first.dist(second);
     this.first.adjs.add(second);
     this.second.adjs.add(first);
   }

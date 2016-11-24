@@ -32,8 +32,8 @@ public class Path {
 
     if (forward && closIndex < path.size() - 1 && closestVisited) {
       return path.get(closIndex + 1);
-    } else if (!forward && closIndex < path.size() - 1 && closestVisited) {
-      return path.get(closIndex + 1);
+    } else if (!forward && closIndex > 0 && closestVisited) {
+      return path.get(closIndex - 1);
     }
     return closest;
   }

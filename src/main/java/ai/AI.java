@@ -24,21 +24,104 @@ public class AI {
 
   private Random random;
   private Path currentPath;
-  private PotentialField pf;
 
   private Vertex moveTarget;
 
-  private List<LivingUnit> enemiesAround;
+  private List<LivingUnit> enemies = new ArrayList<>();
+  private List<LivingUnit> allies = new ArrayList<>();
+  private List<Minion> neutrals = new ArrayList<>();
+  private List<Tree> trees = new ArrayList<>();
+
+  private LivingUnit closestTarget = null;
+  private LivingUnit bestTarget = null;
 
   public void updateWorldInfo(Wizard self, World world, Game game, Move move) {
-    if (world.getTickIndex() == 0) {
-        initData();
-    }
     updateData(self, world, game, move);
-    moveTarget = currentPath.nextVertex(self);
-    enemiesAround = getAllEnemiesInRadius(game.getWizardCastRange() * 1.2, false);
-    enemiesAround.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
-    pf.updateField(self, moveTarget, world, game);
+    if (world.getTickIndex() == 0) {
+      initData();
+    }
+    updateUnitsAround(game.getWizardCastRange() * 3);
+    boolean forward = true;
+    if (closestTarget != null) {
+      double dist = closestTarget.getDistanceTo(self);
+      boolean shielded = haveAllyShield();
+      if (closestTarget instanceof Wizard && !shielded) {
+        forward = false;
+      }
+
+      double hpFactor = self.getLife() * 100.0 / self.getMaxLife();
+      if (closestTarget.getFaction() == oppositeFaction() && dist < self.getCastRange() * 0.9
+          && (!shielded || hpFactor < 60)) {
+        forward = false;
+      }
+      if (hpFactor < 30 || dist < self.getCastRange() * 0.3) {
+        forward = false;
+      }
+      //if (!forward && world.getTickIndex() % 50 == 0) {
+      //  log("RETREAT ENEMY %s, DIST %s, shielded %s, hpFactor %s", closestTarget, dist, shielded, hpFactor);
+      //}
+    }
+    moveTarget = currentPath.nextVertex(self, forward);
+  }
+
+  private void updateUnitsAround(double range) {
+    enemies.clear();
+    allies.clear();
+    neutrals.clear();
+    trees.clear();
+
+    for (LivingUnit unit : world.getBuildings()) {
+      if (unit.getDistanceTo(self) < range) {
+        if (unit.getFaction() == self.getFaction()) {
+          allies.add(unit);
+        } else {
+          enemies.add(unit);
+        }
+      }
+    }
+
+    for (Minion unit : world.getMinions()) {
+      if (unit.getDistanceTo(self) < range) {
+        if (unit.getFaction() == self.getFaction()) {
+          allies.add(unit);
+        } else if (unit.getFaction() == oppositeFaction()){
+          enemies.add(unit);
+        } else {
+          neutrals.add(unit);
+        }
+      }
+    }
+
+    for (Tree unit : world.getTrees()) {
+      if (unit.getDistanceTo(self) < range) {
+        trees.add(unit);
+      }
+    }
+
+    for (Wizard unit : world.getWizards()) {
+      if (unit.getDistanceTo(self) < range && !unit.isMe()) {
+        if (unit.getFaction() == self.getFaction()) {
+          allies.add(unit);
+        } else {
+          enemies.add(unit);
+        }
+      }
+    }
+
+    enemies.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
+    allies.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
+    neutrals.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
+    trees.sort(Comparator.comparingDouble(unit -> unit.getDistanceTo(self)));
+
+    if (!enemies.isEmpty()) {
+      closestTarget = enemies.get(0);
+    } else if (!neutrals.isEmpty()) {
+      closestTarget = neutrals.get(0);
+    } else {
+      closestTarget = null;
+    }
+
+    bestTarget = bestTarget();
   }
 
   private void initData() {
@@ -62,116 +145,63 @@ public class AI {
         break;
       default:
     }
-    currentPath = testPath();
+//    currentPath = testPath();
     log(Arrays.toString(currentPath.path.toArray()));
   }
 
   public void makeDecision() {
     long start = System.nanoTime();
-//    checkBehaviour();
-//    fightAction();
-//    moveAction();
-    fight2();
-    move2();
-    turn2();
+    fight();
+    move();
+    turn();
+    learn();
     long tickHandleTime = (System.nanoTime() - start) / 1_000_000;
     if (tickHandleTime > 10) {
       log("Tick handled to long: %s ms!!", tickHandleTime);
     }
   }
 
-  private void fight2() {
-
-  }
-
-  private void turn2() {
-    move.setTurn(game.getWizardMaxTurnAngle());
-  }
-
-  private void move2() {
-    Vertex target = pf.bestVertex();
-    double angle = self.getAngleTo(target.x, target.y);
-    move.setSpeed(game.getWizardForwardSpeed() * cos(angle));
-    move.setStrafeSpeed(game.getWizardStrafeSpeed() * sin(angle));
-  }
-
-  private void moveAction() {
-    //fight
-    LivingUnit closestEnemy = enemiesAround.get(0);
-    double closestEnemyDist = closestEnemy.getDistanceTo(self);
-    if (closestEnemyDist < 200 || !haveAllyShield()) {
-      moveTo(currentPath.nextVertex(self, false), false);
-    } else if (closestEnemyDist > game.getWizardCastRange() * 0.9) {
-      moveTo(currentPath.nextVertex(self));
-    }
-  }
-
-  private void fightAction() {
-    if (self.getRemainingActionCooldownTicks() > 0 || enemiesAround.isEmpty()) {
+  private void fight() {
+    if (self.getRemainingActionCooldownTicks() > 0 || bestTarget == null) {
       return;
     }
-    LivingUnit closestEnemy = enemiesAround.get(0);
-    double closestEnemyDist = closestEnemy.getDistanceTo(self);
-
+    double closestEnemyDist = closestTarget.getDistanceTo(self);
+    double closestAngle = self.getAngleTo(closestTarget);
     if (closestEnemyDist < game.getStaffRange()
-        && actionAvailable(ActionType.STAFF)) {
-      double angle = self.getAngleTo(closestEnemy);
-      if (abs(angle) < game.getStaffSector() / 2.0D) {
+        && actionAvailable(ActionType.STAFF)
+        && abs(closestAngle) < game.getStaffSector() / 2.0D) {
         move.setAction(ActionType.STAFF);
         return;
-      }
     }
 
-    LivingUnit enemy = bestTarget();
-    if (enemy == null) {
-      return;
-    }
-    double angle = self.getAngleTo(enemy);
-    move.setTurn(angle);
+    double angle = self.getAngleTo(bestTarget);
 
     if (abs(angle) < game.getStaffRange() / 2.0D && actionAvailable(ActionType.MAGIC_MISSILE)) {
       move.setAction(ActionType.MAGIC_MISSILE);
       move.setCastAngle(angle);
-      move.setMinCastDistance(self.getDistanceTo(enemy) - enemy.getRadius() + game.getMagicMissileRadius());
+      move.setMinCastDistance(self.getDistanceTo(bestTarget) - bestTarget.getRadius());
     }
 
     //todo other actions round 1
   }
 
-  private void moveTo(LivingUnit unit) {
-    moveTo(new Vertex(unit.getX(), unit.getY()));
-  }
-
-  private void moveTo(Vertex vertex) {
-    moveTo(vertex, true);
-  }
-
-  private void moveTo(Vertex vertex, boolean forward) {
-    double angle = self.getAngleTo(vertex.x, vertex.y);
-
-    if (forward) {
-      move.setTurn(angle);
-      if (abs(angle) < PI / 4) {
-        move.setSpeed(game.getWizardForwardSpeed());
-      } else if (abs(angle) > 3 * PI / 4) {
-        move.setSpeed(-game.getWizardBackwardSpeed());
-      }
-
-      move.setStrafeSpeed(3 * game.getWizardStrafeSpeed() * random.nextDouble() * (random.nextBoolean() ? 1 : -1));
+  private void turn() {
+    if (bestTarget != null) {
+      move.setTurn(self.getAngleTo(bestTarget));
       return;
     }
-    double partPi = PI / 10;
-    if (angle < -partPi && angle > -partPi * 9) {
-      move.setStrafeSpeed(game.getWizardStrafeSpeed());
-    } else if (angle > partPi && angle < partPi * 9) {
-      move.setStrafeSpeed(-game.getWizardStrafeSpeed());
-    }
+    move.setTurn(self.getAngleTo(moveTarget.x, moveTarget.y));
+  }
 
-    if (abs(angle) < PI / 2) {
-      move.setSpeed(-game.getWizardBackwardSpeed());
-    } else {
-      move.setSpeed(game.getWizardForwardSpeed());
-    }
+  private void move() {
+    double dist = moveTarget.dist(self);
+    double angle = self.getAngleTo(moveTarget.x, moveTarget.y);
+    move.setSpeed(dist * cos(angle));
+    move.setStrafeSpeed(dist * sin(angle));
+  }
+
+  private void learn() {
+
   }
 
   private boolean actionAvailable(ActionType action) {
@@ -180,12 +210,14 @@ public class AI {
   }
 
   private boolean haveAllyShield() {
-    LivingUnit closestEnemy = enemiesAround.get(0);
-    double distToEnemy = closestEnemy.getDistanceTo(self);
+    if (closestTarget == null) {
+      return true;
+    }
+    double distToEnemy = closestTarget.getDistanceTo(self);
     int allyPower = 0, enemyPower = 0;
 
     for (LivingUnit unit : world.getMinions()) {
-      if (unit.getFaction() == self.getFaction() && unit.getDistanceTo(closestEnemy) < distToEnemy) {
+      if (unit.getFaction() == self.getFaction() && unit.getDistanceTo(closestTarget) < distToEnemy) {
         allyPower += 100;
       } else if (unit.getFaction() != self.getFaction()) {
         double dist = unit.getDistanceTo(self);
@@ -198,7 +230,7 @@ public class AI {
     }
 
     for (LivingUnit unit : world.getWizards()) {
-      if (unit.getFaction() == self.getFaction() && unit.getDistanceTo(closestEnemy) < distToEnemy) {
+      if (unit.getFaction() == self.getFaction() && unit.getDistanceTo(closestTarget) < distToEnemy) {
         allyPower += 50;
       } else if (unit.getFaction() != self.getFaction()) {
         double dist = unit.getDistanceTo(self);
@@ -213,16 +245,19 @@ public class AI {
   }
 
   private LivingUnit bestTarget() {
-    List<LivingUnit> enemies = getAllEnemiesInRadius(game.getWizardCastRange(), false);
-    if (enemies.isEmpty()) {
-      enemies = getAllEnemiesInRadius(game.getWizardCastRange(), true);
+    List<? extends LivingUnit> targets = enemies;
+    if (targets.isEmpty()) {
+      targets = neutrals;
     }
-    if (enemies.isEmpty()) {
+    if (targets.isEmpty()) {
       return null;
     }
-    LivingUnit bestEnemy = enemies.get(0);
+    LivingUnit bestEnemy = targets.get(0);
     int bestEnemyValue = 0;
-    for (LivingUnit enemy : enemies) {
+    for (LivingUnit enemy : targets) {
+      if (enemy.getDistanceTo(self) > self.getCastRange()) {
+        continue;
+      }
       int value = enemy.getMaxLife() / enemy.getLife();
       if (enemy instanceof Wizard) {
         value *= 3;
@@ -232,27 +267,10 @@ public class AI {
         bestEnemy = enemy;
       }
     }
-    return bestEnemy;
-  }
-
-  private List<LivingUnit> enemiesInRadius(LivingUnit[] units, double range, boolean neutralsIncluded) {
-    List<LivingUnit> enemies = new ArrayList<>();
-    for (LivingUnit unit : units) {
-      if (unit.getDistanceTo(self) < range
-          && unit.getFaction() == oppositeFaction()
-          && (neutralsIncluded || unit.getFaction() != Faction.NEUTRAL)) {
-        enemies.add(unit);
-      }
+    if (bestEnemyValue == 0) {
+      return null;
     }
-    return enemies;
-  }
-
-  private List<LivingUnit> getAllEnemiesInRadius(double range, boolean neutralsInluded) {
-    List<LivingUnit> enemies = new ArrayList<>();
-    enemies.addAll(enemiesInRadius(world.getBuildings(), range, neutralsInluded));
-    enemies.addAll(enemiesInRadius(world.getWizards(), range, neutralsInluded));
-    enemies.addAll(enemiesInRadius(world.getMinions(), range, neutralsInluded));
-    return enemies;
+    return bestEnemy;
   }
 
   //INITIAL STAGE
@@ -261,12 +279,16 @@ public class AI {
     navGraph = GraphFactory.buildNavigationGraph();
     log("building nav graph in %s ms", (System.nanoTime() - start) / 1_000_000);
     pathFinder = new PathFinder();
+    List<Vertex> topPath = pathFinder.buildPath(Vertex.ALLY_FOUNTAIN, Vertex.ALLY_TOP_CLASH_POINT, navGraph);
+    topPath.addAll(pathFinder.buildPath(Vertex.ENEMY_TOP_CLASH_POINT, Vertex.ENEMY_BASE_TOP_ENTRANCE.copy(), navGraph));
+    TOP_LANE_PATH = new Path(Vertex.ALLY_FOUNTAIN, Vertex.ENEMY_BASE_TOP_ENTRANCE, topPath);
 
-    TOP_LANE_PATH = pathFinder.buildPath(new Vertex(50, 3950), new Vertex(150, 300), navGraph);
-    TOP_LANE_PATH.path.addAll(pathFinder.buildPath(new Vertex(900, 100), new Vertex(3300, 200), navGraph).path);
-    MID_LANE_PATH = pathFinder.buildPath(new Vertex(50, 3950), new Vertex(3300, 800), navGraph);
-    BOTTOM_LANE_PATH = pathFinder.buildPath(new Vertex(50, 3950), new Vertex(3800, 3900), navGraph);
-    BOTTOM_LANE_PATH.path.addAll(pathFinder.buildPath(new Vertex(3900, 3500), new Vertex(3800, 800), navGraph).path);
+    MID_LANE_PATH = new Path(Vertex.ALLY_FOUNTAIN, Vertex.ENEMY_BASE_MID_ENTRANCE.copy(),
+        pathFinder.buildPath(Vertex.ALLY_FOUNTAIN, Vertex.ENEMY_BASE_MID_ENTRANCE.copy(), navGraph));
+
+    List<Vertex> botPath = pathFinder.buildPath(Vertex.ALLY_FOUNTAIN, Vertex.ALLY_BOT_CLASH_POINT, navGraph);
+    botPath.addAll(pathFinder.buildPath(Vertex.ENEMY_BOT_CLASH_POINT, Vertex.ENEMY_BASE_BOT_ENTRANCE, navGraph));
+    BOTTOM_LANE_PATH = new Path(Vertex.ALLY_FOUNTAIN.copy(), Vertex.ENEMY_BASE_BOT_ENTRANCE, botPath);
   }
 
   private void updateData(Wizard self, World world, Game game, Move move) {
@@ -278,12 +300,29 @@ public class AI {
 
 
   private Path testPath() {
-    Vertex start = new Vertex(200, 3600);
-    Vertex end = new Vertex(400, 3800);
+
+    Vertex start = new Vertex(Vertex.ALLY_BASE.x
+        -game.getFactionBaseRadius()
+        -game.getWizardRadius()
+        -5,
+        Vertex.ALLY_BASE.y);
+    Vertex end = new Vertex(Vertex.ALLY_BASE.x,
+        Vertex.ALLY_BASE.y
+        +game.getFactionBaseRadius()
+        +game.getWizardRadius()
+    +5);
     List<Vertex> path = new ArrayList<>();
     path.add(start);
-    path.add(new Vertex(400, 3400));
-    path.add(new Vertex(600, 3600));
+
+    path.add(new Vertex(Vertex.ALLY_BASE.x,
+        Vertex.ALLY_BASE.y
+            -game.getFactionBaseRadius()
+            -game.getWizardRadius()
+            -5));
+    path.add(new Vertex(Vertex.ALLY_BASE.x
+        +game.getFactionBaseRadius()
+        +game.getWizardRadius() + 5,
+        Vertex.ALLY_BASE.y));
     path.add(end);
     return new Path(start, end, path);
   }
@@ -293,6 +332,6 @@ public class AI {
   }
 
   private void log(String format, Object...args) {
-    System.out.println(String.format(format, args) + " --- " + (world == null ? "init" : world.getTickIndex()));
+   // System.out.println(String.format(format, args) + " --- " + (world == null ? "init" : world.getTickIndex()));
   }
 }

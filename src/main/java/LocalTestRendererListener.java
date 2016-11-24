@@ -1,5 +1,3 @@
-package render_plugins;
-
 import java.awt.*;
 
 import model.*;
@@ -21,15 +19,12 @@ public final class LocalTestRendererListener {
   private double width;
   private double height;
 
-  private Graph navGraph = GraphFactory.buildNavigationGraphV2();
+  private Graph navGraph = GraphFactory.buildNavigationGraph();
 
   public void beforeDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
                               double left, double top, double width, double height) {
     updateFields(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
 
-    if (world.getTickIndex() % 250 == 0) {
-      navGraph = GraphFactory.buildNavigationGraphV2(world);
-    }
     graphics.setColor(Color.BLUE);
     navGraph.vertices.forEach(vertex -> fillCircle(vertex.x, vertex.y, 10));
     navGraph.edges.forEach(edge -> drawLine(edge.first.x, edge.first.y, edge.second.x, edge.second.y));

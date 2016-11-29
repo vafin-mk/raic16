@@ -79,11 +79,14 @@ fun prepareSource(source: String): String {
   val clazz = "class"
   val enumz = "enum"
   val interfaze = "interface"
+  val funz = "fun"//extensions
   val clazzIndex = source.indexOf(clazz)
   val enumzIndex = source.indexOf(enumz)
   val interfazeIndex = source.indexOf(interfaze)
+  val funzIndex = source.indexOf(funz)
   if (clazzIndex > 0) return source.substring(clazzIndex)
   if (enumzIndex > 0) return source.substring(enumzIndex)
   if (interfazeIndex > 0) return source.substring(interfazeIndex)
+  if (funzIndex > 0) return source.substring(funzIndex)
   return source
 }

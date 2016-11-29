@@ -1,6 +1,8 @@
 import java.awt.*;
 
 import model.*;
+import pathfinding.*;
+import pathfinding.Point;
 
 import static java.lang.StrictMath.*;
 
@@ -17,16 +19,29 @@ public final class LocalTestRendererListener {
   private double width;
   private double height;
 
-  private Graph navGraph = GraphFactory.buildNavigationGraph();
+//  private Graph navGraph = GraphFactory.buildNavigationGraph();
 
   public void beforeDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
                               double left, double top, double width, double height) {
     updateFields(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
 
     graphics.setColor(Color.BLUE);
-    navGraph.vertices.forEach(vertex -> fillCircle(vertex.x, vertex.y, 10));
-    navGraph.edges.forEach(edge -> drawLine(edge.first.x, edge.first.y, edge.second.x, edge.second.y));
+    drawLane(pathfinding.Lane.Companion.getTOP());
+    graphics.setColor(Color.GREEN);
+    drawLane(pathfinding.Lane.Companion.getMID());
+    graphics.setColor(Color.YELLOW);
+    drawLane(pathfinding.Lane.Companion.getBOTTOM());
+    graphics.setColor(Color.CYAN);
+    drawLane(pathfinding.Lane.Companion.getRIVER());
 
+  }
+
+  private void drawLane(pathfinding.Lane lane) {
+    java.util.List<Point> path = lane.getPath();
+    path.forEach(point -> drawCircle(point.getX(), point.getY(), 15));
+    for (int i = 0; i < path.size() - 1; i++) {
+      drawLine(path.get(i).getX(), path.get(i).getY(), path.get(i+1).getX(), path.get(i+1).getY());
+    }
   }
 
   public void afterDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,

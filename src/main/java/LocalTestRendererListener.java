@@ -1,8 +1,6 @@
 import java.awt.*;
 
 import model.*;
-import pathfinding.Graph;
-import pathfinding.GraphFactory;
 
 import static java.lang.StrictMath.*;
 

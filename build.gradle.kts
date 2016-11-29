@@ -27,19 +27,18 @@ task("combine") {
     //imports
     builder.append("import java.util.*;").append(separator)
     builder.append("import java.lang.*;").append(separator)
-    builder.append("import static java.lang.StrictMath.*;").append(separator)
     builder.append("import model.*;").append(separator)
     builder.append(separator)
     //main class
-    builder.append("class MyStrategy implements Strategy {private AI ai = new AI();")
-    builder.append("@Override public void move(Wizard self, World world, Game game, Move move) { ai.updateWorldInfo(self, world, game, move); ai.makeDecision();}}")
+    builder.append("class MyStrategy : Strategy {val ai = AI()\n")
+    builder.append("override fun move(self: Wizard, world: World, game: Game, move: Move) { ai.updateInfo(self, world, game, move); ai.decision();}}")
     builder.append(doubleSeparator)
     //other classes
     files.forEach { file ->
       val content = prepareSource(file.readText())
       builder.append(content).append(doubleSeparator)
     }
-    File("$projectDir/src/main/java/MyStrategy.java").printWriter().use { out ->
+    File("$projectDir/src/main/java/MyStrategy.kt").printWriter().use { out ->
       out.println(builder)
     }
   }
@@ -60,16 +59,15 @@ task("runServer") {
 fun sourceList(dir: File) : List<File> {
   val files = ArrayList<File>()
   for (file in dir.listFiles()) {
-    if (file.name.equals("model")
-        || file.name.equals("render_plugins")
-        || file.name.equals("strategy")) {
+    if (file.name == "model"
+        || file.name.endsWith("Strategy.kt")) {
       continue
     }
-    if (file.isDirectory()) {
+    if (file.isDirectory) {
       files.addAll(sourceList(file))
       continue
     }
-    if (!file.name.endsWith("java") || file.name.equals("LocalTestRendererListener.java")) {
+    if (!file.name.endsWith("kt")) {
       continue
     }
     files.add(file)

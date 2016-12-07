@@ -19,9 +19,6 @@ class AI {
       learnDecision(self.getSkills().size)
     }
 
-    if (move.action != null) {
-      log("ACTION EP : ${move.action}")
-    }
     val end = System.nanoTime()
     val ms = (end - start) / 1_000_000
     if (ms > 10) {
@@ -56,15 +53,17 @@ class AI {
     }
     val target = evaluateBestTarget(targets)
     move.castAngle = target.angle
-    if (self.canUse(ActionType.FROST_BOLT, game) && !target.unit.frozen()) {
-      move.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
-      move.action = ActionType.FROST_BOLT
-      return
-    }
-    if (self.canUse(ActionType.FIREBALL, game)) {
-      move.minCastDistance = target.dist - target.unit.radius + game.fireballRadius
-      move.action = ActionType.FIREBALL
-      return
+    if (target.unit is Wizard || target.unit is Building) {
+      if (self.canUse(ActionType.FROST_BOLT, game) && !target.unit.frozen()) {
+        move.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
+        move.action = ActionType.FROST_BOLT
+        return
+      }
+      if (self.canUse(ActionType.FIREBALL, game)) {
+        move.minCastDistance = target.dist - target.unit.radius + game.fireballRadius
+        move.action = ActionType.FIREBALL
+        return
+      }
     }
     if (self.canUse(ActionType.MAGIC_MISSILE, game)) {
       move.minCastDistance = target.dist - target.unit.radius + game.magicMissileRadius
@@ -93,7 +92,7 @@ class AI {
       is Wizard -> coefficient += 0.5
       else -> coefficient += 0
     }
-    return target.unit.hpPercent() * coefficient
+    return (100 - target.unit.hpPercent()) * coefficient
   }
 
   private fun turnDecision() {
@@ -178,7 +177,6 @@ class AI {
       3, 8 -> lane = Lane.MID
       else -> lane = Lane.MID
     }
-    lane = Lane.MID
   }
 
   private fun afterDeath() {

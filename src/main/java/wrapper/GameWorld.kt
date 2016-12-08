@@ -89,6 +89,10 @@ class GameWorld {
     }
   }
 
+  fun obstacles(self: Wizard) : List<GameUnit> {
+    return all.filter { it.dist < 300 }
+  }
+
   private fun cleanWorld() {
     all.clear()
     enemies.clear()

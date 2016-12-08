@@ -4,6 +4,7 @@ import canUse
 import extensions.*
 import model.*
 import pathfinding.Lane
+import pathfinding.Point
 import wrapper.GameUnit
 import wrapper.GameUnitType
 import wrapper.GameWorld
@@ -36,21 +37,26 @@ class AI {
       return
     }
     if (gameWorld.inBattleZone(self)) {
-      gameWorld.allies.filter { it.unit is Wizard }.forEach { ally ->
+      gameWorld.allies.filter { it.unit is Wizard && it.dist < self.castRange}.forEach { ally ->
         if (!ally.unit.hastened() && self.canUse(ActionType.HASTE, game)) {
           move.action = ActionType.HASTE
           move.statusTargetId = ally.unit.id
+          log("cast haste on ${move.statusTargetId}")
           return
         } else if (!ally.unit.shielded() && self.canUse(ActionType.SHIELD, game)) {
           move.action = ActionType.SHIELD
+          move.statusTargetId = ally.unit.id
+          log("cast shield on ${move.statusTargetId}")
           return
         }
       }
       if (!self.hastened() && self.canUse(ActionType.HASTE, game)) {
         move.action = ActionType.HASTE
+        log("cast haste on ${move.statusTargetId}")
         return
       } else if (!self.shielded() && self.canUse(ActionType.SHIELD, game)) {
         move.action = ActionType.SHIELD
+        log("cast shield on ${move.statusTargetId}")
         return
       }
     }
@@ -103,14 +109,19 @@ class AI {
     }
     when(target.unit) {
       is Building -> coefficient += 5
-      is Wizard -> coefficient += 10
+      is Wizard -> coefficient += 20
       else -> coefficient += 0
     }
     return (100 - target.unit.hpPercent()) * coefficient
   }
 
   private fun turnDecision() {
-    val targets = gameWorld.inRange(self.castRange, GameUnitType.ENEMY, GameUnitType.NEUTRAL)
+    var targets = gameWorld.inRange(self.castRange, GameUnitType.ENEMY)
+    if (!targets.isEmpty()) {
+      move.turn = evaluateBestTarget(targets).angle
+      return
+    }
+    targets = gameWorld.inRange(self.castRange * 1.4, GameUnitType.ENEMY, GameUnitType.NEUTRAL)
     if (!targets.isEmpty()) {
       move.turn = evaluateBestTarget(targets).angle
       return
@@ -120,7 +131,7 @@ class AI {
   }
 
   private fun moveDecision() {
-    if (self.hpPercent() < 40) {
+    if (self.hpPercent() < 25) {
       internalMove(MoveMode.BACKWARD)
       return
     }
@@ -129,7 +140,7 @@ class AI {
       internalMove(MoveMode.FORWARD)
       return
     }
-    if (enemies.filter { it.unit is Wizard && it.unit.hpPercent() < 20 }.isNotEmpty()) {
+    if (enemies.filter { it.unit is Wizard && it.unit.hpPercent() < 25 }.isNotEmpty()) {
       internalMove(MoveMode.FORWARD)
       return
     }
@@ -151,7 +162,7 @@ class AI {
       return
     }
 
-    if (closestEnemy.dist > self.castRange * 0.8) {
+    if (closestEnemy.dist > self.castRange * 0.6) {
       internalMove(MoveMode.FORWARD)
       return
     }
@@ -162,13 +173,46 @@ class AI {
       return
     }
     val target = if (moveMode == MoveMode.BACKWARD) lane.previousPoint(self.toPoint()) else lane.nextPoint(self.toPoint())
-    var bestTarget = target
-    var bestScore = 0
+    var bestTarget = avoidObstaclePoint(target)
 
-    val dist = target.dist(self.toPoint())
-    val angle = self.getAngleTo(target.x, target.y)
+    val dist = bestTarget.dist(self.toPoint())
+    val angle = self.getAngleTo(bestTarget.x, bestTarget.y)
     move.speed = dist * StrictMath.cos(angle)//todo min(dist/forward|bacward speed)
     move.strafeSpeed = dist * StrictMath.sin(angle)
+  }
+
+  private fun avoidObstaclePoint(target : Point) : Point {
+    val obstacles = gameWorld.obstacles(self)
+    val moveCanditates = moveCandidates(self)
+    val currDist = self.toPoint().dist(target)
+    var best = self.toPoint()
+    var bestScore = 0.0
+    moveCanditates.forEach { point ->
+      var score = 0.0
+      score += currDist - point.dist(target)
+      obstacles.forEach { obstacle ->
+        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius * 1.2) {
+          score = -10000000.0
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score
+        best = point
+      }
+    }
+    return best
+  }
+
+  private fun moveCandidates(self: Wizard) : List<Point> {
+    val res = ArrayList<Point>()
+    val curr = self.toPoint()
+    for (x in Math.max(50, curr.x.toInt() - 4)..Math.min(3950, curr.x.toInt() + 4)) {
+      //todo speed
+      (Math.max(50, curr.y.toInt() - 4)..Math.min(3950, curr.y.toInt() + 4))
+          .map { Point(x.toDouble(), it.toDouble()) }
+          .filterTo(res) { it.dist(self.toPoint()) <= 4 }
+    }
+    return res
   }
 
   private fun learnDecision(level: Int) {
@@ -223,25 +267,28 @@ class AI {
   }
 
   private fun randomBuild() : SkillBuild {
-    val rnd = random.nextInt(6)
+    val rnd = random.nextInt(4)
     log("rnd -> $rnd")
     return when (rnd) {
       0 -> SkillBuild.DMGHAST
       1 -> SkillBuild.FIREFROST
       2 -> SkillBuild.FROSTFIRE
-      3 -> SkillBuild.HASTESHIELD
+      3 -> SkillBuild.FROSTDMG
       4 -> SkillBuild.SHIELDFIRE
-      5 -> SkillBuild.FROSTDMG
+      5 -> SkillBuild.HASTESHIELD
       else -> SkillBuild.FROSTFIRE
     }
   }
 
   private fun afterDeath() {
+    if (world.tickIndex >= 14000) {
+      lane = Lane.MID
+    }
     lane.currentPoint = lane.path[0]
   }
 
   private fun log(text : String) {
-    println("$text -- ${world.tickIndex}")
+//    println("$text -- ${world.tickIndex}")
   }
 
   lateinit var self : Wizard

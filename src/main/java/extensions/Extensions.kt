@@ -44,7 +44,7 @@ fun Faction.opposite() : Faction{
 }
 
 fun LivingUnit.hastened() : Boolean {
-  return getStatuses().find { it.type == StatusType.HASTENED } != null
+  return getStatuses().find { it.type == StatusType.HASTENED && it.remainingDurationTicks > 5} != null
 }
 
 fun LivingUnit.burning() : Boolean {
@@ -52,7 +52,7 @@ fun LivingUnit.burning() : Boolean {
 }
 
 fun LivingUnit.shielded() : Boolean {
-  return getStatuses().find { it.type == StatusType.SHIELDED } != null
+  return getStatuses().find { it.type == StatusType.SHIELDED && it.remainingDurationTicks > 5} != null
 }
 
 fun LivingUnit.empowered() : Boolean {

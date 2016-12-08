@@ -1,6 +1,8 @@
 .gradle/
 .idea/
 build/
-game.log
+*.log
 result.txt
 src/main/java/MyStrategy.kt
+classes/
+strategy.jar

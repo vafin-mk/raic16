@@ -38,8 +38,8 @@ class GameWorld {
   fun inBattleZone(self: Wizard) : Boolean {
     return all.filter {
       it.type != GameUnitType.ALLY
-      && ((it.type == GameUnitType.ENEMY && it.dist < self.castRange)
-          || (it.type == GameUnitType.NEUTRAL && it.dist < self.castRange / 2.5))
+      && ((it.type == GameUnitType.ENEMY && ((it.unit is Wizard && it.dist < 600) || it.dist < 400))
+          || (it.type == GameUnitType.NEUTRAL && it.dist < 250))
     }.isNotEmpty()
   }
 
@@ -66,7 +66,11 @@ class GameWorld {
       }
     }
 
-    world.getTrees().forEach { tree -> trees.add(GameUnit(tree, self)) }
+    world.getTrees().forEach { tree ->
+      val unit = GameUnit(tree, self)
+      all.add(unit)
+      trees.add(unit)
+    }
 
     world.getWizards().filterNot { it.isMe }.forEach { wizard ->
       val unit = GameUnit(wizard, self)

@@ -47,8 +47,8 @@ task("combine") {
 task("runServer") {
   doLast {
     val pb = ProcessBuilder("java", "-Xms512m", "-Xmx2G", "-server", "-jar",
-        "src/main/local-runner/local-runner.jar", "src/main/local-runner/local-runner.properties",
-        "src/main/local-runner/local-runner.default.properties")
+        "src/main/local-runner/local-runner.jar", "src/main/local-runner/local-runner.properties"/*,
+        "src/main/local-runner/local-runner.default.properties"*/)
     pb.redirectErrorStream(true)
         .redirectOutput(ProcessBuilder.Redirect.to(File(project.buildDir, "runServer.log")))
     println("Starting local runner now ... ")

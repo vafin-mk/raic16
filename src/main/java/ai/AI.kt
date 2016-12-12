@@ -5,9 +5,7 @@ import extensions.*
 import model.*
 import pathfinding.Lane
 import pathfinding.Point
-import wrapper.GameUnit
-import wrapper.GameUnitType
-import wrapper.GameWorld
+import wrapper.*
 import java.util.*
 
 class AI {
@@ -32,61 +30,90 @@ class AI {
     if (!self.canFight()) {
       return
     }
-    if (self.canUse(ActionType.STAFF, game) && gameWorld.haveStaffTarget(self, game)) {
-      move.action = ActionType.STAFF
-      return
+    fightPriority.clear()
+    if (self.canUse(ActionType.STAFF, game)) {
+      fightPriority.add(addStaffMove())
     }
     if (gameWorld.inBattleZone(self)) {
-      gameWorld.allies.filter { it.unit is Wizard && it.dist < self.castRange}.forEach { ally ->
-        if (!ally.unit.hastened() && self.canUse(ActionType.HASTE, game)) {
-          move.action = ActionType.HASTE
-          move.statusTargetId = ally.unit.id
-          log("cast haste on ${move.statusTargetId}")
-          return
-        } else if (!ally.unit.shielded() && self.canUse(ActionType.SHIELD, game)) {
-          move.action = ActionType.SHIELD
-          move.statusTargetId = ally.unit.id
-          log("cast shield on ${move.statusTargetId}")
-          return
-        }
+      gameWorld.inAngle(self.castRange, game.staffSector / 2, GameUnitType.ALLY)
+          .filter { it.unit is Wizard }
+          .forEach { wizard ->
+            if (self.canUse(ActionType.HASTE, game)) fightPriority.add(addHasteMove(wizard.unit as Wizard))
+            if (self.canUse(ActionType.SHIELD, game)) fightPriority.add(addShieldMove(wizard.unit as Wizard))
       }
-      if (!self.hastened() && self.canUse(ActionType.HASTE, game)) {
-        move.action = ActionType.HASTE
-        log("cast haste on ${move.statusTargetId}")
-        return
-      } else if (!self.shielded() && self.canUse(ActionType.SHIELD, game)) {
-        move.action = ActionType.SHIELD
-        log("cast shield on ${move.statusTargetId}")
-        return
-      }
+      if (self.canUse(ActionType.HASTE, game)) fightPriority.add(addHasteMove(self))
+      if (self.canUse(ActionType.SHIELD, game)) fightPriority.add(addShieldMove(self))
     }
 
     var targets = gameWorld.inAngle(self.castRange, game.staffSector / 2, GameUnitType.ENEMY)
     if (targets.isEmpty()) {
-      targets = gameWorld.inAngle(self.castRange, game.staffSector / 2, GameUnitType.NEUTRAL)
+      targets = gameWorld.inAngle(self.castRange / 3, game.staffSector / 2, GameUnitType.NEUTRAL)
     }
-    if (targets.isEmpty()) {
-      return
+    targets.forEach { target ->
+      if (self.canUse(ActionType.FROST_BOLT, game)) fightPriority.add(addFrostMove(target))
+      if (self.canUse(ActionType.FIREBALL, game)) fightPriority.add(addFireBallMove(target))
+      if (self.canUse(ActionType.MAGIC_MISSILE, game)) fightPriority.add(addMagigMissileMove(target))
     }
-    val target = evaluateBestTarget(targets)
-    move.castAngle = target.angle
-    if (target.unit is Wizard || target.unit is Building) {
-      if (self.canUse(ActionType.FROST_BOLT, game) && !target.unit.frozen() && target.unit is Wizard) {
-        move.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
-        move.action = ActionType.FROST_BOLT
-        return
-      }
-      if (self.canUse(ActionType.FIREBALL, game)) {
-        move.minCastDistance = target.dist - target.unit.radius + game.fireballRadius
-        move.action = ActionType.FIREBALL
-        return
-      }
-    }
-    if (self.canUse(ActionType.MAGIC_MISSILE, game)) {
-      move.minCastDistance = target.dist - target.unit.radius + game.magicMissileRadius
-      move.action = ActionType.MAGIC_MISSILE
-      return
-    }
+    if (fightPriority.isEmpty()) return
+    val bestMove = fightPriority.poll()
+
+    move.action = bestMove.move.action
+    move.statusTargetId = bestMove.move.statusTargetId
+    move.castAngle = bestMove.move.castAngle
+    move.minCastDistance = bestMove.move.minCastDistance
+  }
+
+  private fun addStaffMove() : GameMove {
+    //&& gameWorld.haveStaffTarget(self, game)
+    val mv = Move()
+    mv.action = ActionType.STAFF
+    var priority = 0.0
+    return GameMove(mv, priority)
+  }
+
+  private fun addHasteMove(target: Wizard) : GameMove {
+    val mv = Move()
+    mv.action = ActionType.HASTE
+    mv.castAngle = target.angle
+    if (!target.isMe) move.statusTargetId = target.id else -1
+    var priority = 0.0
+    return GameMove(mv, priority)
+  }
+
+  private fun addShieldMove(target: Wizard) : GameMove {
+    val mv = Move()
+    mv.action = ActionType.SHIELD
+    mv.castAngle = target.angle
+    if (!target.isMe) move.statusTargetId = target.id else -1
+    var priority = 0.0
+    return GameMove(mv, priority)
+  }
+
+  private fun addFireBallMove(target: GameUnit) : GameMove{
+    val mv = Move()
+    mv.action = ActionType.FIREBALL
+    mv.castAngle = target.angle
+    mv.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
+    var priority = 0.0
+    return GameMove(mv, priority)
+  }
+
+  private fun addFrostMove(target: GameUnit) : GameMove {
+    val mv = Move()
+    mv.action = ActionType.FROST_BOLT
+    mv.castAngle = target.angle
+    mv.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
+    var priority = 0.0
+    return GameMove(mv, priority)
+  }
+
+  private fun addMagigMissileMove(target: GameUnit) : GameMove {
+    val mv = Move()
+    mv.action = ActionType.MAGIC_MISSILE
+    mv.castAngle = target.angle
+    mv.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
+    var priority = 0.0
+    return GameMove(mv, priority)
   }
 
   private fun evaluateBestTarget(targets: List<GameUnit>): GameUnit {
@@ -116,67 +143,93 @@ class AI {
   }
 
   private fun turnDecision() {
-    var targets = gameWorld.inRange(self.castRange, GameUnitType.ENEMY)
-    if (!targets.isEmpty()) {
-      move.turn = evaluateBestTarget(targets).angle
+    var targets = gameWorld.inRange(self.castRange, GameUnitType.ENEMY, GameUnitType.ALLY, GameUnitType.NEUTRAL, GameUnitType.TREE)
+    if (targets.isEmpty()) {
       return
     }
-    targets = gameWorld.inRange(self.castRange * 1.4, GameUnitType.ENEMY, GameUnitType.NEUTRAL)
-    if (!targets.isEmpty()) {
-      move.turn = evaluateBestTarget(targets).angle
-      return
+    turnPriority.clear()
+    targets.forEach { target ->
+      turnPriority.add(evaluateTurn(target))
     }
-    val moveTarget = lane.nextPoint(self.toPoint())
-    move.turn = self.getAngleTo(moveTarget.x, moveTarget.y)
+    val bestTurn = turnPriority.poll()
+    if (bestTurn.priority > 0) {
+      move.turn = bestTurn.move.turn
+    }
+  }
+
+  private fun evaluateTurn(target: GameUnit) : GameTurn {
+    val mv = Move()
+    mv.turn = target.angle
+    val priority = 0.0
+    return GameTurn(mv, priority)
   }
 
   private fun moveDecision() {
-    if (self.hpPercent() < 25) {
-      internalMove(MoveMode.BACKWARD)
-      return
-    }
-    val enemies = gameWorld.inRange(self.castRange, GameUnitType.ENEMY, GameUnitType.NEUTRAL)
-    if (enemies.isEmpty()) {
-      internalMove(MoveMode.FORWARD)
-      return
-    }
-    if (enemies.filter { it.unit is Wizard && it.unit.hpPercent() < 25 }.isNotEmpty()) {
-      internalMove(MoveMode.FORWARD)
-      return
-    }
-    if (self.hpPercent() < 70 && gameWorld.inBattleZone(self)) {
-      internalMove(MoveMode.BACKWARD)
-      return
-    }
-    val allies = gameWorld.inRange(self.castRange, GameUnitType.ALLY).filterNot { it.unit is Wizard }
-    if (allies.isEmpty()) {
-      internalMove(MoveMode.BACKWARD)
-      return
-    }
-    val closestEnemy = enemies.sortedBy { it.dist }[0]
-    val closestAlly = allies.filter { it.unit !is Wizard }.sortedBy { it.dist }[0]
-    val shielded = closestAlly.unit.getDistanceTo(closestEnemy.unit) * 1.2 < closestEnemy.dist
-
-    if (!shielded) {
-      internalMove(MoveMode.BACKWARD)
-      return
+    val obstacles = gameWorld.obstacles(self)
+    val moveCanditates = moveCandidates(self)
+    //remove all blocked points
+    val iterator = moveCanditates.listIterator()
+    while(iterator.hasNext()) {
+      val point = iterator.next()
+      obstacles.forEach { obstacle ->
+        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius * 1.1) {
+          iterator.remove()
+        }
+      }
     }
 
-    if (closestEnemy.dist > self.castRange * 0.6) {
-      internalMove(MoveMode.FORWARD)
-      return
+    if (moveCanditates.isEmpty()) return
+    movePriority.clear()
+    moveCanditates.forEach { point ->
+      movePriority.add(evaluateMovePoint(point))
     }
+    internalMove(movePriority.poll().point)
+
+//    if (self.hpPercent() < 25) {
+//      internalMove(MoveMode.BACKWARD)
+//      return
+//    }
+//    val enemies = gameWorld.inRange(self.castRange, GameUnitType.ENEMY, GameUnitType.NEUTRAL)
+//    if (enemies.isEmpty()) {
+//      internalMove(MoveMode.FORWARD)
+//      return
+//    }
+//    if (enemies.filter { it.unit is Wizard && it.unit.hpPercent() < 25 }.isNotEmpty()) {
+//      internalMove(MoveMode.FORWARD)
+//      return
+//    }
+//    if (self.hpPercent() < 70 && gameWorld.inBattleZone(self)) {
+//      internalMove(MoveMode.BACKWARD)
+//      return
+//    }
+//    val allies = gameWorld.inRange(self.castRange, GameUnitType.ALLY).filterNot { it.unit is Wizard }
+//    if (allies.isEmpty()) {
+//      internalMove(MoveMode.BACKWARD)
+//      return
+//    }
+//    val closestEnemy = enemies.sortedBy { it.dist }[0]
+//    val closestAlly = allies.filter { it.unit !is Wizard }.sortedBy { it.dist }[0]
+//    val shielded = closestAlly.unit.getDistanceTo(closestEnemy.unit) * 1.2 < closestEnemy.dist
+//
+//    if (!shielded) {
+//      internalMove(MoveMode.BACKWARD)
+//      return
+//    }
+//
+//    if (closestEnemy.dist > self.castRange * 0.6) {
+//      internalMove(MoveMode.FORWARD)
+//      return
+//    }
   }
 
-  private fun internalMove(moveMode: MoveMode) {
-    if (moveMode == MoveMode.STOP) {
-      return
-    }
-    val target = if (moveMode == MoveMode.BACKWARD) lane.previousPoint(self.toPoint()) else lane.nextPoint(self.toPoint())
-    var bestTarget = avoidObstaclePoint(target)
+  private fun evaluateMovePoint(point: Point) : GamePoint {
+    val priority = 0.0
+    return GamePoint(point, priority)
+  }
 
-    val dist = bestTarget.dist(self.toPoint())
-    val angle = self.getAngleTo(bestTarget.x, bestTarget.y)
+  private fun internalMove(point: Point) {
+    val dist = point.dist(self.toPoint())
+    val angle = self.getAngleTo(point.x, point.y)
     move.speed = dist * StrictMath.cos(angle)//todo min(dist/forward|bacward speed)
     move.strafeSpeed = dist * StrictMath.sin(angle)
   }
@@ -203,7 +256,7 @@ class AI {
     return best
   }
 
-  private fun moveCandidates(self: Wizard) : List<Point> {
+  private fun moveCandidates(self: Wizard) : MutableList<Point> {
     val res = ArrayList<Point>()
     val curr = self.toPoint()
     for (x in Math.max(50, curr.x.toInt() - 4)..Math.min(3950, curr.x.toInt() + 4)) {
@@ -240,44 +293,13 @@ class AI {
 
   private fun initStrategy() {
     random = Random(game.randomSeed)
-    if (game.isRawMessagesEnabled) {//5x5
-      when(self.id.toInt()) {
-        1, 6 -> lane = Lane.TOP
-        5, 10 -> lane = Lane.BOTTOM
-        else -> lane = Lane.MID
-      }
-      when(self.id.toInt()) {
-        1, 10 -> skillBuild = SkillBuild.DMGHAST
-        2, 9 -> skillBuild = SkillBuild.FIREFROST
-        3, 8 -> skillBuild = SkillBuild.SHIELDFIRE
-        4, 7 -> skillBuild = SkillBuild.HASTESHIELD
-        5, 6 -> skillBuild = SkillBuild.FROSTDMG
-        else -> skillBuild = randomBuild()
-      }
-      return
-    }
-    //solo
-    when(self.id.toInt()) {
-      1, 2, 6, 7 -> lane = Lane.TOP
-      4, 5, 9, 10 -> lane = Lane.BOTTOM
-      3, 8 -> lane = Lane.MID
-      else -> lane = Lane.MID
-    }
-    skillBuild = randomBuild()
-  }
 
-  private fun randomBuild() : SkillBuild {
-    val rnd = random.nextInt(4)
-    log("rnd -> $rnd")
-    return when (rnd) {
-      0 -> SkillBuild.DMGHAST
-      1 -> SkillBuild.FIREFROST
-      2 -> SkillBuild.FROSTFIRE
-      3 -> SkillBuild.FROSTDMG
-      4 -> SkillBuild.SHIELDFIRE
-      5 -> SkillBuild.HASTESHIELD
-      else -> SkillBuild.FROSTFIRE
-    }
+    if (game.isRawMessagesEnabled) gameMode = GameMode.TEAM
+    else if (game.isSkillsEnabled) gameMode = GameMode.SINGLE_SKILL
+    else gameMode = GameMode.SINGLE_NO_SKILL
+
+    lane = gameMode.getLane(self.id.toInt())
+    skillBuild = gameMode.getSkillBuild(self.id.toInt())
   }
 
   private fun afterDeath() {
@@ -301,4 +323,8 @@ class AI {
   lateinit var lane: Lane
   val gameWorld = GameWorld()
   lateinit var skillBuild: SkillBuild
+  lateinit var gameMode : GameMode
+  val movePriority  = PriorityQueue<GamePoint>()
+  val fightPriority  = PriorityQueue<GameMove>()
+  val turnPriority  = PriorityQueue<GameTurn>()
 }

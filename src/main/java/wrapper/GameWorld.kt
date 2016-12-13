@@ -1,7 +1,10 @@
 package wrapper
 
 import extensions.opposite
+import extensions.toPoint
 import model.*
+import pathfinding.Point
+import pathfinding.PotentialField
 import java.util.*
 
 class GameWorld {
@@ -91,6 +94,20 @@ class GameWorld {
 
   fun obstacles(self: Wizard) : List<GameUnit> {
     return all.filter { it.dist < 300 }
+  }
+
+  fun potentialFields(self: Wizard) : MutableList<PotentialField> {
+    val res = ArrayList<PotentialField>()
+    all.filter { it.dist < self.castRange * 2}.forEach { gameUnit ->
+      when(gameUnit.unit) {
+        is Wizard -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
+        is Building -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
+        is Minion -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
+        is Tree -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
+        else -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
+      }
+    }
+    return res
   }
 
   private fun cleanWorld() {

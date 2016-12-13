@@ -5,8 +5,10 @@ import extensions.*
 import model.*
 import pathfinding.Lane
 import pathfinding.Point
+import pathfinding.PotentialField
 import wrapper.*
 import java.util.*
+import kotlin.collections.ArrayList
 
 class AI {
 
@@ -165,18 +167,9 @@ class AI {
   }
 
   private fun moveDecision() {
-    val obstacles = gameWorld.obstacles(self)
+
     val moveCanditates = moveCandidates(self)
-    //remove all blocked points
-    val iterator = moveCanditates.listIterator()
-    while(iterator.hasNext()) {
-      val point = iterator.next()
-      obstacles.forEach { obstacle ->
-        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius * 1.1) {
-          iterator.remove()
-        }
-      }
-    }
+
 
     if (moveCanditates.isEmpty()) return
     movePriority.clear()
@@ -222,8 +215,11 @@ class AI {
 //    }
   }
 
+  val pt = PotentialField(true, Point.MID_CLASH_POINT, 12000)
   private fun evaluateMovePoint(point: Point) : GamePoint {
-    val priority = 0.0
+    var priority = 0.0
+    potentialFields.forEach { pf -> priority += pf.force(self, point) }
+    priority += pt.force(self, point) * 100
     return GamePoint(point, priority)
   }
 
@@ -234,37 +230,28 @@ class AI {
     move.strafeSpeed = dist * StrictMath.sin(angle)
   }
 
-  private fun avoidObstaclePoint(target : Point) : Point {
-    val obstacles = gameWorld.obstacles(self)
-    val moveCanditates = moveCandidates(self)
-    val currDist = self.toPoint().dist(target)
-    var best = self.toPoint()
-    var bestScore = 0.0
-    moveCanditates.forEach { point ->
-      var score = 0.0
-      score += currDist - point.dist(target)
-      obstacles.forEach { obstacle ->
-        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius * 1.2) {
-          score = -10000000.0
-        }
-      }
-      if (score > bestScore) {
-        bestScore = score
-        best = point
-      }
-    }
-    return best
-  }
-
   private fun moveCandidates(self: Wizard) : MutableList<Point> {
     val res = ArrayList<Point>()
     val curr = self.toPoint()
-    for (x in Math.max(50, curr.x.toInt() - 4)..Math.min(3950, curr.x.toInt() + 4)) {
+    val range = 6
+    for (x in Math.max(50, curr.x.toInt() - range)..Math.min(3950, curr.x.toInt() + range)) {
       //todo speed
-      (Math.max(50, curr.y.toInt() - 4)..Math.min(3950, curr.y.toInt() + 4))
+      (Math.max(50, curr.y.toInt() - range)..Math.min(3950, curr.y.toInt() + range))
           .map { Point(x.toDouble(), it.toDouble()) }
           .filterTo(res) { it.dist(self.toPoint()) <= 4 }
     }
+
+    val obstacles = gameWorld.obstacles(self)
+    val blocked = ArrayList<Point>()
+    obstacles.forEach { obstacle ->
+      res.forEach { point ->
+        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius + 8) {
+          blocked.add(point)
+        }
+      }
+    }
+    res.removeAll(blocked)
+
     return res
   }
 
@@ -275,6 +262,7 @@ class AI {
   fun updateInfo(self: Wizard, world: World, game: Game, move: Move) {
     updateVars(self, world, game, move)
     gameWorld.update(world, self)
+    potentialFields = gameWorld.potentialFields(self)
     if (world.tickIndex - lastTick > 1000) {
       afterDeath()
     }
@@ -310,7 +298,7 @@ class AI {
   }
 
   private fun log(text : String) {
-//    println("$text -- ${world.tickIndex}")
+    println("$text -- ${world.tickIndex}")
   }
 
   lateinit var self : Wizard
@@ -327,4 +315,5 @@ class AI {
   val movePriority  = PriorityQueue<GamePoint>()
   val fightPriority  = PriorityQueue<GameMove>()
   val turnPriority  = PriorityQueue<GameTurn>()
+  var potentialFields : MutableList<PotentialField> = ArrayList()
 }

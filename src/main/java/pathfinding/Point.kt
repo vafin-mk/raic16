@@ -6,8 +6,16 @@ class Point(val x : Double, val y : Double) {
     return StrictMath.hypot(other.x - x, other.y - y)
   }
 
+  fun manhattanDist(other: Point) : Double {
+    return StrictMath.abs(other.x - x) + StrictMath.abs(other.y - y)
+  }
+
   fun add(x : Double, y: Double) : Point {
     return Point(this.x + x, this.y + y)
+  }
+
+  override fun toString(): String {
+    return "Point($x;$y)"
   }
 
   companion object{

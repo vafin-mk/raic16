@@ -68,6 +68,18 @@ task("runServer10") {
   }
 }
 
+task("runServerSolo") {
+  doLast {
+    val pb = ProcessBuilder("java", "-Xms512m", "-Xmx2G", "-server", "-jar",
+        "src/main/local-runner/local-runner.jar", "src/main/local-runner/local-runner-solo.properties"/*,
+        "src/main/local-runner/local-runner.default.properties"*/)
+    pb.redirectErrorStream(true)
+        .redirectOutput(ProcessBuilder.Redirect.to(File(project.buildDir, "runServer.log")))
+    println("Starting local runner now ... ")
+    pb.start();
+  }
+}
+
 fun sourceList(dir: File) : List<File> {
   val files = ArrayList<File>()
   for (file in dir.listFiles()) {

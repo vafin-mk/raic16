@@ -114,7 +114,7 @@ class AI {
     mv.action = ActionType.MAGIC_MISSILE
     mv.castAngle = target.angle
     mv.minCastDistance = target.dist - target.unit.radius + game.frostBoltRadius
-    var priority = 0.0
+    var priority = 10.0
     return GameMove(mv, priority)
   }
 
@@ -167,14 +167,18 @@ class AI {
   }
 
   private fun moveDecision() {
-
     val moveCanditates = moveCandidates(self)
-
-
     if (moveCanditates.isEmpty()) return
+
+    var targetPoint = lane.nextPoint(self.toPoint())
+
+
     movePriority.clear()
     moveCanditates.forEach { point ->
-      movePriority.add(evaluateMovePoint(point))
+      movePriority.add(evaluateMovePoint(point, targetPoint))
+    }
+    if (world.tickIndex % 50 == 0) {
+      log("$movePriority")
     }
     internalMove(movePriority.poll().point)
 
@@ -215,12 +219,15 @@ class AI {
 //    }
   }
 
-  val pt = PotentialField(true, Point.MID_CLASH_POINT, 12000)
-  private fun evaluateMovePoint(point: Point) : GamePoint {
+//  val pt = PotentialField(true, Point.MID_CLASH_POINT, 12000, coefficient = 10)
+  private fun evaluateMovePoint(point: Point, targetPoint : Point) : GamePoint {
     var priority = 0.0
-    potentialFields.forEach { pf -> priority += pf.force(self, point) }
-    priority += pt.force(self, point) * 100
-    return GamePoint(point, priority)
+//    potentialFields.forEach { pf -> priority += pf.force(self, point) }
+//    enemyPotentialFields.forEach { pf -> priority = StrictMath.max(pf.force(self, point), priority) }
+//    priority += pt.force(self, point)
+    val mhDistPoint = point.manhattanDist(targetPoint)
+    val mhDistWizard = self.toPoint().manhattanDist(targetPoint)
+    return GamePoint(point, mhDistWizard - mhDistPoint)
   }
 
   private fun internalMove(point: Point) {
@@ -245,7 +252,7 @@ class AI {
     val blocked = ArrayList<Point>()
     obstacles.forEach { obstacle ->
       res.forEach { point ->
-        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius + 8) {
+        if (obstacle.unit.toPoint().dist(point) < obstacle.unit.radius + self.radius * 1.5) {
           blocked.add(point)
         }
       }
@@ -262,7 +269,8 @@ class AI {
   fun updateInfo(self: Wizard, world: World, game: Game, move: Move) {
     updateVars(self, world, game, move)
     gameWorld.update(world, self)
-    potentialFields = gameWorld.potentialFields(self)
+//    potentialFields = gameWorld.potentialFields(self, gameMode, false)
+//    enemyPotentialFields = gameWorld.potentialFields(self, gameMode, true)
     if (world.tickIndex - lastTick > 1000) {
       afterDeath()
     }
@@ -315,5 +323,6 @@ class AI {
   val movePriority  = PriorityQueue<GamePoint>()
   val fightPriority  = PriorityQueue<GameMove>()
   val turnPriority  = PriorityQueue<GameTurn>()
-  var potentialFields : MutableList<PotentialField> = ArrayList()
+//  var potentialFields : MutableList<PotentialField> = ArrayList()
+//  var enemyPotentialFields : MutableList<PotentialField> = ArrayList()
 }

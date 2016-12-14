@@ -1,8 +1,10 @@
 package wrapper
 
+import ai.GameMode
 import extensions.opposite
 import extensions.toPoint
 import model.*
+import pathfinding.PFType
 import pathfinding.Point
 import pathfinding.PotentialField
 import java.util.*
@@ -90,24 +92,113 @@ class GameWorld {
         else -> print("fail!")
       }
     }
+
+    world.getProjectiles()
+        .filter { it.getDistanceTo(self) < 1200 && StrictMath.abs(it.getAngleTo(self)) < StrictMath.PI / 4 }
+        .forEach { projectiles.add(it)  }
   }
 
   fun obstacles(self: Wizard) : List<GameUnit> {
     return all.filter { it.dist < 300 }
   }
 
-  fun potentialFields(self: Wizard) : MutableList<PotentialField> {
+  fun potentialFields(self: Wizard, mode: GameMode, forEnemys : Boolean) : MutableList<PotentialField> {
     val res = ArrayList<PotentialField>()
-    all.filter { it.dist < self.castRange * 2}.forEach { gameUnit ->
-      when(gameUnit.unit) {
-        is Wizard -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
-        is Building -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
-        is Minion -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
-        is Tree -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
-        else -> res.add(PotentialField(false, gameUnit.unit.toPoint(), gameUnit.unit.radius.toInt() + 100))
+    if (forEnemys) {
+      all.filter { it.dist < self.castRange * 4 && it.unit.faction == self.faction.opposite() }
+          .forEach { enemy ->
+            val pos = enemy.unit.toPoint()
+            when (enemy.unit) {
+              is Wizard -> res.add(getPotentialField(self, enemy, PFType.ENEMY_WIZARD))
+              is Building -> {
+                if (enemy.unit.type == BuildingType.GUARDIAN_TOWER) res.add(getPotentialField(self, enemy, PFType.ENEMY_TOWER))
+                else res.add(getPotentialField(self, enemy, PFType.ENEMY_BASE))
+              }
+              is Minion -> res.add(getPotentialField(self, enemy, PFType.ENEMY_MINION))
+              //else -> res.add(PotentialField(false, pos, self.castRange.toInt()))
+            }
+          }
+    } else {
+      all.filter { it.dist < self.castRange * 2 && it.unit.faction == self.faction}.forEach { gameUnit ->
+        val pos = gameUnit.unit.toPoint()
+        val radius = gameUnit.unit.radius + self.radius + 15
+        when (gameUnit.unit) {
+          is Wizard -> res.add(getPotentialField(self, gameUnit, PFType.ALLY_WIZARD))
+          is Building -> {
+            if (gameUnit.unit.type == BuildingType.GUARDIAN_TOWER) res.add(getPotentialField(self, gameUnit, PFType.ALLY_TOWER))
+            else res.add(getPotentialField(self, gameUnit, PFType.ALLY_BASE))
+          }
+          is Minion -> res.add(getPotentialField(self, gameUnit, PFType.ALLY_MINION))
+          //else -> res.add(PotentialField(false, pos, radius.toInt()))
+        }
+      }
+
+      all.filter { it.dist < self.castRange * 3 && it.unit.faction == Faction.NEUTRAL}.forEach { gameUnit ->
+        val pos = gameUnit.unit.toPoint()
+        val radius = gameUnit.unit.radius + self.radius + 15
+        when (gameUnit.unit) {
+          //is Minion -> res.add(getPotentialField(self, gameUnit, PFType.))
+          is Tree -> res.add(getPotentialField(self, gameUnit, PFType.TREE))
+          //else -> res.add(PotentialField(false, pos, radius.toInt()))
+        }
       }
     }
     return res
+  }
+
+  private fun getPotentialField(self: Wizard, gameUnit: GameUnit, type: PFType): PotentialField {
+    val avoidObstacleRange = self.radius + 10
+
+    var attractive = true
+    var point = gameUnit.unit.toPoint()
+    var initialCharge = 100
+    var gradation = 1
+    var coefficent = 10
+    var initialDist = 0.0
+    when (type) {
+      PFType.ENEMY_MINION -> {
+        initialCharge = 1000
+        initialDist = 100.0//todo staff range
+        coefficent = 1
+      }
+      PFType.ENEMY_WIZARD -> {
+        initialCharge = 1000
+        initialDist = 300.0
+        coefficent = 1
+      }
+      PFType.ENEMY_TOWER -> {
+        initialCharge = 1000
+        initialDist = 450.0
+        coefficent = 1
+      }
+      PFType.ENEMY_BASE -> {
+        initialCharge = 1000
+        initialDist = 450.0
+        coefficent = 1
+      }
+      PFType.ALLY_MINION -> {
+        attractive = false
+        initialCharge = (gameUnit.unit.radius + avoidObstacleRange).toInt()
+      }
+      PFType.ALLY_WIZARD -> {
+        attractive = false
+        initialCharge = (gameUnit.unit.radius + avoidObstacleRange).toInt()
+      }
+      PFType.ALLY_TOWER -> {
+        attractive = false
+        initialCharge = (gameUnit.unit.radius + avoidObstacleRange).toInt() * 2
+      }
+      PFType.ALLY_BASE -> {
+        attractive = false
+        initialCharge = (gameUnit.unit.radius + avoidObstacleRange).toInt()
+      }
+      PFType.TREE -> {
+        attractive = false
+        initialCharge = (gameUnit.unit.radius + avoidObstacleRange).toInt() * 5
+        coefficent = 1
+      }
+    }
+    return PotentialField(attractive, point, initialCharge, gradation, coefficent, initialDist)
   }
 
   private fun cleanWorld() {
@@ -127,5 +218,6 @@ class GameWorld {
   val neutrals = ArrayList<GameUnit>()
   val enemyWizards = ArrayList<GameUnit>()
   val allyWizards = ArrayList<GameUnit>()
+  val projectiles = ArrayList<Projectile>()
 
 }

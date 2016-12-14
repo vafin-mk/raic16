@@ -1,0 +1,8 @@
+package pathfinding
+
+enum class PFType {
+  ENEMY_MINION, ENEMY_WIZARD, ENEMY_TOWER, ENEMY_BASE,
+  ALLY_MINION, ALLY_WIZARD, ALLY_TOWER, ALLY_BASE,
+  TREE
+
+}

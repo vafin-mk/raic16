@@ -34,10 +34,10 @@ class Point(val x : Double, val y : Double) {
     val ALLY_MID_TOWER2 = Point(902.0, 2768.0)
     val ALLY_BOT_TOWER1 = Point(2312.0, 3950.0)
     val ALLY_BOT_TOWER2 = Point(1370.0, 3650.0)
-    val ALLY_TOP_CLASH_POINT = Point(100.0, 200.0)
-    val ALLY_BOT_CLASH_POINT = Point(3800.0, 3900.0)
+    val ALLY_TOP_CLASH_POINT = Point(250.0, 250.0)
+    val ALLY_BOT_CLASH_POINT = Point(3750.0, 3750.0)
 
-    val MID_CLASH_POINT = Point(2000.0, 2000.0)
+    val MID_CLASH_POINT = Point(1800.0, 2200.0)
 
     val ENEMY_BASE = Point(3600.0, 400.0)
     val ENEMY_BASE_MID_ENTRANCE = Point(3200.0, 800.0)
@@ -51,5 +51,6 @@ class Point(val x : Double, val y : Double) {
     val ENEMY_BOT_TOWER2 = Point(3950.0, 1307.0)
     val ENEMY_TOP_CLASH_POINT = Point(900.0, 150.0)
     val ENEMY_BOT_CLASH_POINT = Point(3900.0, 3500.0)
+    val ENEMY_FOUNTAIN = Point(3900.0, 100.0)
   }
 }

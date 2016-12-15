@@ -35,7 +35,7 @@ class GameWorld {
   fun haveStaffTarget(self: Wizard, game: Game) : Boolean {
     return all.filter {
       it.type != GameUnitType.ALLY
-        && it.dist < game.staffRange
+        && it.dist < game.staffRange + it.unit.radius
           && StrictMath.abs(it.angle) < game.staffSector / 2
     }.isNotEmpty()
   }

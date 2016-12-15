@@ -66,3 +66,7 @@ fun LivingUnit.frozen() : Boolean {
 fun LivingUnit.hpPercent() : Double {
   return life.toDouble() * 100 / maxLife
 }
+
+fun Wizard.mpPercent() : Double {
+  return mana.toDouble() * 100 / maxMana
+}
